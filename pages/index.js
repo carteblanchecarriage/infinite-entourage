@@ -55,7 +55,7 @@ export default function Home() {
     <main
       className={`flex min-h-screen flex-col items-center m-4 ${inter.className}`}
     >
-      <div className='w-full relative flex flex-col place-items-center '>
+      <div className='w-full max-w-lg relative flex flex-col place-items-center '>
         <h2 className='text-2xl font-semibold italic text-center'>
           Infinite Entourage
         </h2>
