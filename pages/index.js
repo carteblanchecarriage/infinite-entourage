@@ -53,10 +53,12 @@ export default function Home() {
 
   return (
     <main
-      className={`flex min-h-screen flex-col items-center p-24 ${inter.className}`}
+      className={`flex min-h-screen flex-col items-center m-4 ${inter.className}`}
     >
-      <div className='w-1/4 relative flex flex-col place-items-center '>
-        <h2 className='text-2xl font-semibold italic'>Infinite Entourage</h2>
+      <div className='w-full relative flex flex-col place-items-center '>
+        <h2 className='text-2xl font-semibold italic text-center'>
+          Infinite Entourage
+        </h2>
         <textarea
           className='w-full mt-4 text-black p-2 z-10'
           value={prompt}
