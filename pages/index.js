@@ -36,7 +36,7 @@ export default function Home() {
   }
 
   function handleStyle(e) {
-    console.log(e.target.id);
+    console.log('just a log', e.target.id);
     setStyleState(e.target.id);
   }
 
@@ -46,8 +46,8 @@ export default function Home() {
 
   useEffect(() => {
     setEntourageResult('');
-    console.log(styles);
-  }, []);
+    console.log('actualy state', styleState);
+  }, [styleState]);
 
   const styles = ['realistic', 'illustration', 'silhouette'];
 
@@ -68,8 +68,8 @@ export default function Home() {
               <div key={style}>
                 <button
                   className={`${
-                    style === styleState ? 'bg-blue-500' : null
-                  } p-2 bg-white text-black cursor-pointer rounded-md`}
+                    style == styleState ? 'bg-blue-500' : 'bg-white'
+                  } p-2  text-black cursor-pointer rounded-md`}
                   onClick={(e) => handleStyle(e)}
                   id={style}
                 >
