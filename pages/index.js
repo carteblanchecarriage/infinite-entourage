@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import { useState } from 'react';
 import { Test } from '@/utils/testImage';
 import { useEffect } from 'react';
+import Link from 'next/link';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -59,6 +60,7 @@ export default function Home() {
         <h2 className='text-2xl font-semibold italic text-center'>
           Infinite Entourage
         </h2>
+        <Link href='/login'>LOGIN</Link>
         <textarea
           className='w-full mt-4 text-black p-2 z-10'
           value={prompt}
