@@ -20,7 +20,7 @@ export default function Login() {
         ) : (
           <>
             <Account session={session} />
-            <p>you're logged in</p>
+            <p>youre logged in</p>
           </>
         )}
       </div>
