@@ -61,13 +61,28 @@ export default function Home() {
           LOGIN
         </Link>
         <div className='w-full max-w-lg relative flex flex-col place-items-center '>
-          <h2 className='text-2xl font-semibold italic text-center'>
+          <h2 className='text-2xl font-semibold italic text-center mb-6'>
             Infinite Entourage
           </h2>
-
+          <div className='text-gray-200'>
+            Entourage: The people, plants, and objects in an architectural
+            image, typically done in photoshop. For this reason images with
+            transparent backgrounds are needed and it can be time consuming to
+            find the right image with all the right properties to fit a
+            rendering.
+          </div>
+          <div className='text-gray-200 mt-2'>
+            This site is currently fake. To test the concept, select realistic
+            and enter the following prompt and click 'Create Entourage'{' '}
+            <code className='block bg-gray-800 text-white px-2 mt-2'>
+              Old man wearing a sweater, standing, facing forward with his hands
+              crossed behind his back
+            </code>
+          </div>
           <textarea
             className='w-full mt-4 text-black p-2 z-10'
             value={prompt}
+            placeholder='enter your prompt here'
             onChange={handlePromptChange}
           ></textarea>
           <div className='flex justify-between w-full mt-2'>
@@ -77,7 +92,7 @@ export default function Home() {
                   <button
                     className={`${
                       style == styleState ? 'bg-blue-500' : 'bg-white'
-                    } p-2  text-black cursor-pointer rounded-md`}
+                    } p-2  text-black cursor-pointer rounded-md mt-4`}
                     onClick={(e) => handleStyle(e)}
                     id={style}
                   >
@@ -89,7 +104,7 @@ export default function Home() {
           </div>
 
           <button
-            className='mt-4 bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white py-2 px-4 border border-blue-500 hover:border-transparent rounded'
+            className='mt-12 bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white py-2 px-4 border border-blue-500 hover:border-transparent rounded'
             onClick={fetchData}
           >
             {entourageResult ? 'Recreate' : ' Create Entourage'}
