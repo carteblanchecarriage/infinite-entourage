@@ -20,7 +20,7 @@ export default function Account({ session }) {
 
       let { data, error, status } = await supabase
         .from('profiles')
-        .select(`username, website, avatar_url`)
+        .select(`username, avatar_url`)
         .eq('id', user.id)
         .single();
 
@@ -65,48 +65,55 @@ export default function Account({ session }) {
   }
 
   return (
-    <div className='form-widget'>
-      <div>
-        <label htmlFor='email'>Email!</label>
-        <input id='email' type='text' value={session.user.email} disabled />
-      </div>
-      <div>
-        <label htmlFor='username'>Username</label>
-        <input
-          id='username'
-          type='text'
-          value={username || ''}
-          onChange={(e) => setUsername(e.target.value)}
-        />
-      </div>
-      <div>
-        <label htmlFor='website'>Website</label>
-        <input
-          id='website'
-          type='url'
-          value={website || ''}
-          onChange={(e) => setWebsite(e.target.value)}
-        />
-      </div>
+    <>
+      <div className='font-bold text-2xl'>YOUR PROFILE</div>
+      <div className='max-w-lg w-full flex flex-col items-center justify-center mt-6'>
+        <div className='bg-transparent w-full text-center flex flex-col'>
+          <label htmlFor='email' className='font-bold'>
+            Email:
+          </label>
+          <input
+            id='email'
+            type='text'
+            value={session.user.email}
+            disabled
+            className='w-full bg-transparent text-center'
+          />
+        </div>
 
-      <div>
-        <button
-          className='button primary block'
-          onClick={() => updateProfile({ username, website, avatar_url })}
-          disabled={loading}
-        >
-          {loading ? 'Loading ...' : 'Update'}
-        </button>
-      </div>
+        <div className='bg-transparent w-full text-center flex flex-col mt-4'>
+          <label htmlFor='email' className='font-bold'>
+            Username:
+          </label>
+          <input
+            id='email'
+            type='text'
+            value={username || ''}
+            onChange={(e) => setUsername(e.target.value)}
+            disabled
+            className='w-full bg-transparent text-center'
+          />
+        </div>
 
-      <div>
-        <button
-          className='button block'
-          onClick={() => supabase.auth.signOut()}
-        >
-          Sign Out
-        </button>
+        <div>
+          <button
+            className='button block border border-white p-2 w-[100px] mt-12 mb-4'
+            onClick={() => updateProfile({ username, website, avatar_url })}
+            /* disabled={loading} */
+            disabled={true}
+          >
+            {loading ? 'Loading ...' : 'Update'}
+          </button>
+        </div>
+        <div>
+          <button
+            className='button block border border-white p-2 w-[100px]'
+            onClick={() => supabase.auth.signOut()}
+          >
+            Sign Out
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

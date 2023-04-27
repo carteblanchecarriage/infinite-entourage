@@ -10,17 +10,18 @@ export default function Login() {
   return (
     <>
       <div className='w-full p-8 flex flex-col items-center'>
-        <h1>LOGIN</h1>
         {!session ? (
-          <Auth
-            supabaseClient={supabase}
-            appearance={{ theme: ThemeSupa }}
-            theme='dark'
-          />
+          <>
+            <h1>LOGIN</h1>
+            <Auth
+              supabaseClient={supabase}
+              appearance={{ theme: ThemeSupa }}
+              theme='dark'
+            />
+          </>
         ) : (
           <>
             <Account session={session} />
-            <p>youre logged in</p>
           </>
         )}
       </div>

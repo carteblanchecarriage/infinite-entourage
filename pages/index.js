@@ -53,65 +53,70 @@ export default function Home() {
   const styles = ['realistic', 'illustration', 'silhouette'];
 
   return (
-    <main
-      className={`flex min-h-screen flex-col items-center m-4 ${inter.className}`}
-    >
-      <div className='w-full max-w-lg relative flex flex-col place-items-center '>
-        <h2 className='text-2xl font-semibold italic text-center'>
-          Infinite Entourage
-        </h2>
-        <Link href='/login'>LOGIN</Link>
-        <textarea
-          className='w-full mt-4 text-black p-2 z-10'
-          value={prompt}
-          onChange={handlePromptChange}
-        ></textarea>
-        <div className='flex justify-between w-full mt-2'>
-          {styles.map((style) => (
-            <>
-              <div key={style}>
-                <button
-                  className={`${
-                    style == styleState ? 'bg-blue-500' : 'bg-white'
-                  } p-2  text-black cursor-pointer rounded-md`}
-                  onClick={(e) => handleStyle(e)}
-                  id={style}
-                >
-                  {style}
-                </button>
-              </div>
-            </>
-          ))}
-        </div>
+    <>
+      <main
+        className={`flex min-h-screen flex-col items-center m-6 ${inter.className}`}
+      >
+        <Link href='/login' className='w-full text-right text-sm italic'>
+          LOGIN
+        </Link>
+        <div className='w-full max-w-lg relative flex flex-col place-items-center '>
+          <h2 className='text-2xl font-semibold italic text-center'>
+            Infinite Entourage
+          </h2>
 
-        <button
-          className='mt-4 bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white py-2 px-4 border border-blue-500 hover:border-transparent rounded'
-          onClick={fetchData}
-        >
-          {entourageResult ? 'Recreate' : ' Create Entourage'}
-        </button>
-      </div>
-      <div className='flex flex-col'>
-        {error && !imageProcessing ? (
-          <p>{error}</p>
-        ) : imageProcessing ? (
-          <Image
-            src='/loading_spinner.gif'
-            alt='spinner'
-            width={100}
-            height={100}
-            className='mt-6'
-          />
-        ) : entourageResult ? (
-          <Image
-            src={entourageResult}
-            alt='entourage'
-            width={100}
-            height={100}
-            className='mt-6'
-          />
-        ) : null}
-      </div>
-    </main>
+          <textarea
+            className='w-full mt-4 text-black p-2 z-10'
+            value={prompt}
+            onChange={handlePromptChange}
+          ></textarea>
+          <div className='flex justify-between w-full mt-2'>
+            {styles.map((style) => (
+              <>
+                <div key={style}>
+                  <button
+                    className={`${
+                      style == styleState ? 'bg-blue-500' : 'bg-white'
+                    } p-2  text-black cursor-pointer rounded-md`}
+                    onClick={(e) => handleStyle(e)}
+                    id={style}
+                  >
+                    {style}
+                  </button>
+                </div>
+              </>
+            ))}
+          </div>
+
+          <button
+            className='mt-4 bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white py-2 px-4 border border-blue-500 hover:border-transparent rounded'
+            onClick={fetchData}
+          >
+            {entourageResult ? 'Recreate' : ' Create Entourage'}
+          </button>
+        </div>
+        <div className='flex flex-col'>
+          {error && !imageProcessing ? (
+            <p>{error}</p>
+          ) : imageProcessing ? (
+            <Image
+              src='/loading_spinner.gif'
+              alt='spinner'
+              width={100}
+              height={100}
+              className='mt-6'
+            />
+          ) : entourageResult ? (
+            <Image
+              src={entourageResult}
+              alt='entourage'
+              width={100}
+              height={100}
+              className='mt-6'
+            />
+          ) : null}
+        </div>
+      </main>
+    </>
   );
 }
