@@ -73,7 +73,8 @@ export default function Home() {
           </div>
           <div className='text-gray-200 mt-2'>
             This site is currently fake. To test the concept, select realistic
-            and enter the following prompt and click 'Create Entourage'{' '}
+            and enter the following prompt and click &apos;Create
+            Entourage&apos;{' '}
             <code className='block bg-gray-800 text-white px-2 mt-2'>
               Old man wearing a sweater, standing, facing forward with his hands
               crossed behind his back
