@@ -12,10 +12,11 @@ export default function Login() {
       <div className='w-full p-8 flex flex-col items-center'>
         {!session ? (
           <>
-            <h1>LOGIN</h1>
+            <h1 className='text-2xl font-semibold'>LOGIN / SIGN-UP</h1>
             <Auth
               supabaseClient={supabase}
               appearance={{ theme: ThemeSupa }}
+              providers={[]}
               theme='dark'
             />
           </>
