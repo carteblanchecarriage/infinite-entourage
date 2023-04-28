@@ -55,15 +55,9 @@ export default function Home() {
   return (
     <>
       <main
-        className={`flex min-h-screen flex-col items-center m-6 ${inter.className}`}
+        className={`flex min-h-screen flex-col items-center mt-16 ${inter.className}`}
       >
-        <Link href='/login' className='w-full text-right text-sm italic'>
-          LOGIN
-        </Link>
         <div className='w-full max-w-lg relative flex flex-col place-items-center '>
-          <h2 className='text-2xl font-semibold italic text-center mb-6'>
-            Infinite Entourage
-          </h2>
           <div className='text-gray-200'>
             Entourage: The people, plants, and objects in an architectural
             image, typically done in photoshop. For this reason images with

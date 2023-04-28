@@ -8,6 +8,7 @@ export default function Account({ session }) {
   const [username, setUsername] = useState(null);
   const [website, setWebsite] = useState(null);
   const [avatar_url, setAvatarUrl] = useState(null);
+  const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
     getProfile();
@@ -55,6 +56,7 @@ export default function Account({ session }) {
 
       let { error } = await supabase.from('profiles').upsert(updates);
       if (error) throw error;
+      setEditMode(false);
       alert('Profile updated!');
     } catch (error) {
       alert('Error updating the data!');
@@ -67,6 +69,7 @@ export default function Account({ session }) {
   return (
     <>
       <div className='font-bold text-2xl'>YOUR PROFILE</div>
+      <p onClick={() => setEditMode(true)}>edit</p>
       <div className='max-w-lg w-full flex flex-col items-center justify-center mt-6'>
         <div className='bg-transparent w-full text-center flex flex-col'>
           <label htmlFor='email' className='font-bold'>
@@ -90,8 +93,8 @@ export default function Account({ session }) {
             type='text'
             value={username || ''}
             onChange={(e) => setUsername(e.target.value)}
-            disabled
-            className='w-full bg-transparent text-center'
+            disabled={!editMode}
+            className='w-full bg-gray-700 text-center'
           />
         </div>
 
@@ -100,7 +103,6 @@ export default function Account({ session }) {
             className='button block border border-white p-2 w-[100px] mt-12 mb-4'
             onClick={() => updateProfile({ username, website, avatar_url })}
             /* disabled={loading} */
-            disabled={true}
           >
             {loading ? 'Loading ...' : 'Update'}
           </button>
@@ -112,6 +114,12 @@ export default function Account({ session }) {
           >
             Sign Out
           </button>
+          {/*           <button
+            className='button block border border-red-600 text-red-600 p-2 w-[100px] mt-4'
+            onClick={handleDelete}
+          >
+            Delete Account
+          </button> */}
         </div>
       </div>
     </>

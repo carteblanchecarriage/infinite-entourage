@@ -19,4 +19,5 @@
 body {
   color: rgb(var(--foreground-rgb));
   background: radial-gradient(circle at center, #001224, #000000);
+  margin: 16px;
 }

@@ -1,20 +1,20 @@
 import { supabase } from '@/lib/supabaseClient';
 
-function Page({ countries }) {
+function Page() {
   return (
     <>
-      {countries && (
+      {/*       {countries && (
         <ul>
           {countries.map((country) => (
             <li key={country.id}>{country.name}</li>
           ))}
         </ul>
-      )}
+      )} */}
     </>
   );
 }
 
-export async function getServerSideProps() {
+/* export async function getServerSideProps() {
   let { data } = await supabase.from('countries').select();
 
   return {
@@ -22,6 +22,6 @@ export async function getServerSideProps() {
       countries: data,
     },
   };
-}
+} */
 
 export default Page;
