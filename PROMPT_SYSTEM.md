@@ -1,5 +1,7 @@
 # Infinite Entourage - Advanced Prompt System
 
+*Last updated: 2026-02-20*
+
 ## Overview
 
 The prompt system now intelligently detects subject types and injects diversity for people when not specified. This ensures:
