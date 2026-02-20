@@ -268,6 +268,12 @@ export default function Home() {
           <p className="text-xs text-gray-500 mt-3">
             TIP: DESCRIBE THE SUBJECT AND ACTION. AVOID BACKGROUNDS LIKE "ON STREET" OR "AGAINST WALL" — THEY MAKE BACKGROUND REMOVAL HARDER.
           </p>
+          <p className="text-xs text-gray-500 mt-2">
+            TIP: FOR PEOPLE, ADD POSE INFO LIKE "WALKING" OR "STANDING". FOR OBJECTS, ADD VIEW LIKE "SIDE VIEW" OR "FRONT VIEW" FOR CLEANER RESULTS.
+          </p>
+          <p className="text-xs text-gray-500 mt-2">
+            TIP: INCLUDE KEY DETAILS IN YOUR FIRST 10 WORDS — "A WOMAN WITH A WATERING CAN" WORKS BETTER THAN JUST "A WOMAN".
+          </p>
         </div>
 
         {/* INPUT */}
