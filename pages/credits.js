@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
+// Map package amounts to Stripe price IDs from env
+const PRICE_ID_MAP = {
+  10: process.env.NEXT_PUBLIC_STRIPE_PRICE_10,
+  50: process.env.NEXT_PUBLIC_STRIPE_PRICE_50,
+  100: process.env.NEXT_PUBLIC_STRIPE_PRICE_100,
+};
+
 const CREDIT_PACKAGES = [
-  { id: 5, amount: 5, price: '$5.00', priceIdEnv: 'STRIPE_PRICE_5' },
-  { id: 10, amount: 10, price: '$10.00', savings: 'SAVE 10%', priceIdEnv: 'STRIPE_PRICE_10' },
-  { id: 25, amount: 25, price: '$20.00', savings: 'SAVE 20%', priceIdEnv: 'STRIPE_PRICE_25' },
+  { id: 10, amount: 10, price: '$1.00', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_10' },
+  { id: 50, amount: 50, price: '$5.00', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_50' },
+  { id: 100, amount: 100, price: '$10.00', savings: 'BEST VALUE', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_100' },
 ];
 
 export default function Credits() {
@@ -41,8 +48,14 @@ export default function Credits() {
   }, []);
 
   const handlePurchase = async (creditPackage) => {
-    // Get price ID from environment (available server-side)
-    // For client-side, we'll fetch from API
+    // Get price ID from environment mapping
+    const priceId = PRICE_ID_MAP[creditPackage.amount];
+    
+    if (!priceId) {
+      setMessage('Error: Price not configured');
+      return;
+    }
+    
     setLoading(creditPackage.id);
     setMessage('');
 
@@ -51,8 +64,9 @@ export default function Credits() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          priceId: priceId,
           credits: creditPackage.amount,
-          userId: 'anonymous', // Could use fingerprint here
+          userId: 'anonymous',
         }),
       });
 
