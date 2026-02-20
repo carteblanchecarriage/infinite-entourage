@@ -119,7 +119,7 @@ export default function Home() {
           setShowCreditPrompt(true);
           throw new Error('No credits remaining');
         }
-        throw new Error(data.error || 'Generation failed');
+        throw new Error(data.error || 'Something went wrong. Try again?');
       }
       
       setResult(data.url);
@@ -141,7 +141,7 @@ export default function Home() {
       // Admin/infinite generations don't deduct credits
       
     } catch (e) {
-      setError(e.message || 'ERROR');
+      setError(e.message || 'Oops! Something went wrong.');
     }
     setProcessing(false);
   }
