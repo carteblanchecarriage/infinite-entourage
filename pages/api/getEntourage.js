@@ -13,11 +13,42 @@ const supabase = createClient(
 
 const COST_PER_IMAGE = 1;
 const FREE_LIMIT = 3;
-const DAILY_MS = 24 * 60 * 60 * 1000; // 24 hours
+const DAILY_MS = 24 * 60 * 60 * 1000;
 
-// In-memory cache for IP tracking (still needed for rate limiting)
-const ipTracker = new Map(); // ip -> { count, resetTime }
-const IP_FREE_LIMIT = 5; // IP-based daily limit
+// IP rate limiting
+const ipTracker = new Map();
+const IP_FREE_LIMIT = 5;
+
+// Validation helper functions
+function sanitizeString(str, maxLength = 500) {
+  if (!str || typeof str !== 'string') return '';
+  
+  const trimmed = str.trim().slice(0, maxLength);
+  
+  // Basic XSS prevention - remove dangerous patterns
+  return trimmed
+    .replace(/<script[^>]*>.*?<\/script>/gi, '')
+    .replace(/javascript:/gi, '')
+    .replace(/on\w+\s*=/gi, '')
+    .replace(/<[^>]+>/g, ''); // Strip HTML tags
+}
+
+function isValidFingerprint(fp) {
+  if (!fp || typeof fp !== 'string') return false;
+  // Fingerprint should be base64-like, 32 chars max
+  return fp.length <= 32 && /^[A-Za-z0-9+/=]+$/.test(fp);
+}
+
+function isValidAdminKey(key) {
+  if (!key || typeof key !== 'string') return false;
+  // Admin key should be reasonable length
+  return key.length >= 20 && key.length <= 256;
+}
+
+function isValidStyle(style) {
+  const validStyles = ['realistic', 'illustration', 'silhouette'];
+  return validStyles.includes(style);
+}
 
 async function createPrediction(version, input) {
   const res = await fetch('https://api.replicate.com/v1/predictions', {
@@ -195,6 +226,13 @@ async function validateCredits(fingerprint, isAdmin, isInfinite, clientIp) {
 }
 
 export default async function handler(req, res) {
+  // Security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Content-Security-Policy', "default-src 'none'");
+
   const { method, body, query } = req;
 
   if (method !== 'POST') {
@@ -205,16 +243,41 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Replicate API token not configured' });
   }
 
-  const data = typeof body === 'string' ? JSON.parse(body) : body;
-  const { prompt, style, fingerprint, infiniteMode } = data;
-  
-  if (!prompt || prompt.length < 3) {
-    return res.status(400).json({ error: 'Prompt too short' });
+  // Parse and validate input
+  let data;
+  try {
+    data = typeof body === 'string' ? JSON.parse(body) : body;
+  } catch (e) {
+    return res.status(400).json({ error: 'Invalid JSON' });
   }
   
-  // Check for admin key in query params
-  const isAdmin = query.adminKey && query.adminKey === ADMIN_KEY;
-  const isInfinite = infiniteMode === true;
+  const rawPrompt = data.prompt;
+  const rawStyle = data.style;
+  const rawFingerprint = data.fingerprint;
+  const rawInfiniteMode = data.infiniteMode;
+  const rawAdminKey = query.adminKey;
+  
+  // Sanitize inputs
+  const prompt = sanitizeString(rawPrompt, 500);
+  const style = sanitizeString(rawStyle, 50);
+  const fingerprint = sanitizeString(rawFingerprint, 32);
+  
+  // Validate inputs
+  if (!prompt || prompt.length < 3) {
+    return res.status(400).json({ error: 'Prompt too short (minimum 3 characters)' });
+  }
+  
+  if (!isValidStyle(style)) {
+    return res.status(400).json({ error: 'Invalid style' });
+  }
+  
+  if (!isValidFingerprint(fingerprint)) {
+    return res.status(400).json({ error: 'Invalid fingerprint' });
+  }
+  
+  // Validate admin key
+  const isAdmin = isValidAdminKey(rawAdminKey) && rawAdminKey === ADMIN_KEY;
+  const isInfinite = rawInfiniteMode === true;
   
   // Get client IP for rate limiting
   const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
