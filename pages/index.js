@@ -1,6 +1,28 @@
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+
+// Generate a fingerprint for tracking free tier usage
+function generateFingerprint() {
+  if (typeof window === 'undefined') return '';
+  
+  // Try to get existing fingerprint
+  let fingerprint = localStorage.getItem('ie_fingerprint');
+  if (fingerprint) return fingerprint;
+  
+  // Create new fingerprint from browser characteristics
+  const components = [
+    navigator.userAgent,
+    screen.width + 'x' + screen.height,
+    navigator.language,
+    new Date().getTimezoneOffset(),
+    Math.random().toString(36).substring(2, 15) // Random component
+  ];
+  
+  fingerprint = btoa(components.join('|')).substring(0, 32);
+  localStorage.setItem('ie_fingerprint', fingerprint);
+  return fingerprint;
+}
 
 export default function Home() {
   const [prompt, setPrompt] = useState('');
@@ -8,6 +30,10 @@ export default function Home() {
   const [processing, setProcessing] = useState(false);
   const [style, setStyle] = useState('realistic');
   const [error, setError] = useState('');
+  const [credits, setCredits] = useState(0);
+  const [freeUsed, setFreeUsed] = useState(0);
+  const [fingerprint, setFingerprint] = useState('');
+  const [showCreditPrompt, setShowCreditPrompt] = useState(false);
 
   const styles = [
     { id: 'realistic', label: 'REALISTIC' },
@@ -15,34 +41,89 @@ export default function Home() {
     { id: 'silhouette', label: 'SILHOUETTE' },
   ];
 
+  // Initialize on mount
+  useEffect(() => {
+    const fp = generateFingerprint();
+    setFingerprint(fp);
+    
+    // Load credits from localStorage
+    const storedCredits = localStorage.getItem('ie_credits');
+    if (storedCredits) {
+      setCredits(parseInt(storedCredits, 10));
+    }
+    
+    // Load free tier usage
+    const storedFreeUsed = localStorage.getItem('ie_free_used');
+    if (storedFreeUsed) {
+      setFreeUsed(parseInt(storedFreeUsed, 10));
+    }
+  }, []);
+
   async function generate() {
     if (prompt.length < 3) {
       setError('ENTER A PROMPT');
       return;
     }
+    
+    // Check if user has credits before attempting
+    const totalAvailable = credits + (3 - freeUsed);
+    if (totalAvailable < 1) {
+      setShowCreditPrompt(true);
+      return;
+    }
+    
     setResult('');
     setProcessing(true);
     setError('');
+    setShowCreditPrompt(false);
     
     try {
       const res = await fetch('/api/getEntourage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, style }),
+        body: JSON.stringify({ 
+          prompt, 
+          style,
+          fingerprint,
+          credits
+        }),
       });
       
+      const data = await res.json();
+      
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Generation failed');
+        if (data.code === 'NO_CREDITS') {
+          setShowCreditPrompt(true);
+          throw new Error('No credits remaining');
+        }
+        throw new Error(data.error || 'Generation failed');
       }
       
-      const data = await res.json();
       setResult(data.url);
+      
+      // Update credits based on response
+      if (data.isFreeTier) {
+        // Used free tier
+        const newFreeUsed = data.freeTierUsed || freeUsed + 1;
+        setFreeUsed(newFreeUsed);
+        localStorage.setItem('ie_free_used', newFreeUsed.toString());
+      } else if (!data.isAdmin) {
+        // Used paid credits
+        const newCredits = data.remainingCredits || credits - 1;
+        setCredits(newCredits);
+        localStorage.setItem('ie_credits', newCredits.toString());
+      }
+      // Admin generations don't deduct credits
+      
     } catch (e) {
       setError(e.message || 'ERROR');
     }
     setProcessing(false);
   }
+
+  // Calculate total available credits
+  const freeRemaining = Math.max(0, 3 - freeUsed);
+  const totalCredits = credits + freeRemaining;
 
   return (
     <div className="min-h-screen bg-white text-black font-mono">
@@ -52,9 +133,19 @@ export default function Home() {
           <Link href="/" className="text-2xl md:text-4xl font-black tracking-tighter hover:bg-black hover:text-white px-2">
             INFINITE ENTOURAGE
           </Link>
-          <div className="flex gap-4">
+          <div className="flex items-center gap-4">
+            {/* Credit counter */}
+            <div className="flex items-center gap-2 border-2 border-black px-3 py-2">
+              <span className="text-base md:text-lg font-bold">{totalCredits}</span>
+              <span className="text-sm text-gray-600">CREDITS</span>
+              {freeRemaining > 0 && (
+                <span className="text-xs bg-green-100 text-green-800 px-2 py-1">
+                  {freeRemaining} FREE
+                </span>
+              )}
+            </div>
             <Link href="/credits" className="text-base md:text-xl font-bold border-2 border-black px-3 md:px-4 py-2 hover:bg-black hover:text-white transition">
-              CREDITS
+              BUY MORE
             </Link>
           </div>
         </div>
@@ -63,6 +154,30 @@ export default function Home() {
       {/* MAIN */}
       <main className="max-w-4xl mx-auto p-4 md:p-6">
         
+        {/* CREDIT PROMPT - Show when out of credits */}
+        {showCreditPrompt && (
+          <div className="mb-8 border-4 border-yellow-500 bg-yellow-50 p-6">
+            <h2 className="text-2xl font-black mb-4">🎉 YOU'VE USED ALL YOUR FREE CREDITS!</h2>
+            <p className="text-lg mb-4">
+              You've generated 3 free images. Ready to create more?
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link 
+                href="/credits" 
+                className="text-center text-xl font-black py-4 border-4 border-black bg-black text-white hover:bg-white hover:text-black transition"
+              >
+                BUY CREDITS →
+              </Link>
+              <button
+                onClick={() => setShowCreditPrompt(false)}
+                className="text-center text-xl font-bold py-4 border-4 border-black hover:bg-black hover:text-white transition"
+              >
+                MAYBE LATER
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* HERO */}
         <div className="mb-12 border-4 border-black p-6 md:p-8">
           <h1 className="text-4xl md:text-6xl font-black mb-4 leading-none">
@@ -74,6 +189,11 @@ export default function Home() {
           <p className="text-sm md:text-base mt-2 text-gray-600">
             PEOPLE • ANIMALS • VEHICLES • PLANTS • OBJECTS
           </p>
+          {freeRemaining > 0 && (
+            <p className="text-sm mt-4 text-green-600 font-bold">
+              🎁 {freeRemaining} FREE IMAGES REMAINING
+            </p>
+          )}
         </div>
 
         {/* EXAMPLES */}
@@ -141,10 +261,16 @@ export default function Home() {
         {/* GENERATE */}
         <button
           onClick={generate}
-          disabled={processing}
-          className="w-full text-xl md:text-3xl font-black py-4 md:py-6 border-4 border-black bg-black text-white hover:bg-white hover:text-black transition disabled:opacity-50"
+          disabled={processing || totalCredits < 1}
+          className="w-full text-xl md:text-3xl font-black py-4 md:py-6 border-4 border-black bg-black text-white hover:bg-white hover:text-black transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {processing ? 'GENERATING...' : result ? 'GENERATE AGAIN' : 'GENERATE'}
+          {processing 
+            ? 'GENERATING...' 
+            : totalCredits < 1 
+              ? 'NO CREDITS - BUY MORE'
+              : result 
+                ? 'GENERATE AGAIN' 
+                : 'GENERATE'}
         </button>
 
         {error && (
@@ -181,7 +307,6 @@ export default function Home() {
                         URL.revokeObjectURL(url);
                       } catch (err) {
                         console.error('Download failed:', err);
-                        // Fallback: open in new tab
                         window.open(result, '_blank');
                       }
                     }}
