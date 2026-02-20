@@ -13,7 +13,14 @@ async function createPrediction(version, input) {
     },
     body: JSON.stringify({ version, input }),
   });
-  return res.json();
+  const data = await res.json();
+  
+  // Check for rate limiting
+  if (res.status === 429 || data.status === 429) {
+    return { ...data, rateLimited: true, retryAfter: data.retry_after || 8 };
+  }
+  
+  return data;
 }
 
 async function waitForPrediction(id) {
@@ -97,49 +104,68 @@ export default async function handler(req, res) {
     console.log('Removing background with rembg...');
     console.log('Input image URL:', finalImageUrl);
     
-    try {
-      const rembgInput = { image: finalImageUrl };
-      const rembgPred = await createPrediction(REMBG_VERSION, rembgInput);
-      
-      if (rembgPred.id) {
-        console.log('rembg prediction created:', rembgPred.id);
-        const rembgResult = await waitForPrediction(rembgPred.id);
+    let rembgSuccess = false;
+    let retryCount = 0;
+    const maxRetries = 2;
+    
+    while (!rembgSuccess && retryCount <= maxRetries) {
+      try {
+        // Add delay before rembg to avoid rate limiting
+        const delayMs = retryCount === 0 ? 1000 : 8000;
+        console.log(`Waiting ${delayMs}ms before rembg (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+        await new Promise(r => setTimeout(r, delayMs));
         
-        console.log('rembg result status:', rembgResult.status);
-        console.log('rembg result output type:', typeof rembgResult.output);
-        console.log('rembg result output:', JSON.stringify(rembgResult.output, null, 2));
+        const rembgInput = { image: finalImageUrl };
+        const rembgPred = await createPrediction(REMBG_VERSION, rembgInput);
         
-        if (rembgResult.status === 'succeeded' && rembgResult.output) {
-          // Handle different output formats
-          let rembgOutput = rembgResult.output;
+        // Handle rate limiting
+        if (rembgPred.rateLimited) {
+          console.log(`Rate limited, need to wait ${rembgPred.retryAfter}s`);
+          retryCount++;
+          continue;
+        }
+        
+        if (rembgPred.id) {
+          console.log('rembg prediction created:', rembgPred.id);
+          const rembgResult = await waitForPrediction(rembgPred.id);
           
-          // If it's an array, get first element
-          if (Array.isArray(rembgOutput)) {
-            rembgOutput = rembgOutput[0];
-            console.log('rembg output was array, first element:', rembgOutput);
-          }
+          console.log('rembg result status:', rembgResult.status);
           
-          // If output is an object with an 'output' field (nested structure)
-          if (typeof rembgOutput === 'object' && rembgOutput !== null && rembgOutput.output) {
-            rembgOutput = rembgOutput.output;
-            console.log('rembg output was nested, extracted:', rembgOutput);
-          }
-          
-          // Validate it's a proper URL
-          if (rembgOutput && typeof rembgOutput === 'string' && rembgOutput.startsWith('http')) {
-            finalImageUrl = rembgOutput;
-            console.log('SUCCESS - Transparene version:', finalImageUrl);
+          if (rembgResult.status === 'succeeded' && rembgResult.output) {
+            // Handle different output formats
+            let rembgOutput = rembgResult.output;
+            
+            // If it's an array, get first element
+            if (Array.isArray(rembgOutput)) {
+              rembgOutput = rembgOutput[0];
+            }
+            
+            // Validate it's a proper URL
+            if (rembgOutput && typeof rembgOutput === 'string' && rembgOutput.startsWith('http')) {
+              finalImageUrl = rembgOutput;
+              rembgSuccess = true;
+              console.log('SUCCESS - Transparent version:', finalImageUrl);
+            } else {
+              console.error('rembg output format unexpected:', typeof rembgOutput, rembgOutput);
+            }
           } else {
-            console.error('rembg output format unexpected or not a URL:', rembgOutput);
+            console.error('rembg prediction failed:', rembgResult.status, rembgResult.error);
           }
         } else {
-          console.error('rembg prediction failed or no output:', rembgResult.status, rembgResult.error);
+          console.error('Failed to create rembg prediction:', rembgPred);
         }
-      } else {
-        console.error('Failed to create rembg prediction:', rembgPred);
+      } catch (rembgError) {
+        console.error('rembg threw error:', rembgError);
       }
-    } catch (rembgError) {
-      console.error('rembg threw error:', rembgError);
+      
+      if (!rembgSuccess) {
+        retryCount++;
+        console.log(`rembg attempt ${retryCount} failed, will retry...`);
+      }
+    }
+    
+    if (!rembgSuccess) {
+      console.log('rembg failed after retries, returning original FLUX image');
     }
 
     // Deduct credit for generation
@@ -165,7 +191,8 @@ export default async function handler(req, res) {
     res.status(200).json({ 
       url: finalUrlWithCache, 
       subjectType: promptResult.subjectType,
-      prompt: fullPrompt 
+      prompt: fullPrompt,
+      rembgSuccess: rembgSuccess
     });
     
   } catch (error) {
