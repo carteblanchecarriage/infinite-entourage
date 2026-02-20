@@ -254,19 +254,22 @@ export default function Home() {
         </div>
 
         {/* GENERATE */}
-        <button
-          onClick={generate}
-          disabled={processing || totalCredits < 1}
-          className="w-full text-xl md:text-3xl font-black py-4 md:py-6 border-4 border-black bg-black text-white hover:bg-white hover:text-black transition disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {processing 
-            ? 'GENERATING...' 
-            : totalCredits < 1 
-              ? 'NO CREDITS - BUY MORE'
-              : result 
-                ? 'GENERATE AGAIN' 
-                : 'GENERATE'}
-        </button>
+        {totalCredits < 1 ? (
+          <Link
+            href="/credits"
+            className="block w-full text-xl md:text-3xl font-black py-4 md:py-6 border-4 border-black bg-black text-white hover:bg-white hover:text-black transition text-center"
+          >
+            NO CREDITS - BUY MORE
+          </Link>
+        ) : (
+          <button
+            onClick={generate}
+            disabled={processing}
+            className="w-full text-xl md:text-3xl font-black py-4 md:py-6 border-4 border-black bg-black text-white hover:bg-white hover:text-black transition disabled:opacity-50"
+          >
+            {processing ? 'GENERATING...' : result ? 'GENERATE AGAIN' : 'GENERATE'}
+          </button>
+        )}
 
         {error && (
           <div className="mt-4 p-3 md:p-4 border-4 border-black bg-red-500 text-white font-bold text-base md:text-xl">
