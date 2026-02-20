@@ -1,8 +1,6 @@
 // Admin endpoint to view user feedback
 // Usage: GET /api/admin/feedback?key=YOUR_ADMIN_KEY
 
-import { getFeedbackData } from '../../lib/feedbackStore';
-
 const ADMIN_KEY = process.env.ADMIN_GENERATION_KEY;
 
 export default async function handler(req, res) {
