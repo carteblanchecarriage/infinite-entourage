@@ -13,14 +13,7 @@ async function createPrediction(version, input) {
     },
     body: JSON.stringify({ version, input }),
   });
-  const data = await res.json();
-  
-  // Check for rate limiting
-  if (res.status === 429 || data.status === 429) {
-    return { ...data, rateLimited: true, retryAfter: data.retry_after || 8 };
-  }
-  
-  return data;
+  return res.json();
 }
 
 async function waitForPrediction(id) {
@@ -102,70 +95,29 @@ export default async function handler(req, res) {
 
     // Always remove background for clean entourage output
     console.log('Removing background with rembg...');
-    console.log('Input image URL:', finalImageUrl);
     
-    let rembgSuccess = false;
-    let retryCount = 0;
-    const maxRetries = 2;
+    const rembgInput = { image: finalImageUrl };
+    const rembgPred = await createPrediction(REMBG_VERSION, rembgInput);
     
-    while (!rembgSuccess && retryCount <= maxRetries) {
-      try {
-        // Add delay before rembg to avoid rate limiting
-        const delayMs = retryCount === 0 ? 1000 : 8000;
-        console.log(`Waiting ${delayMs}ms before rembg (attempt ${retryCount + 1}/${maxRetries + 1})...`);
-        await new Promise(r => setTimeout(r, delayMs));
-        
-        const rembgInput = { image: finalImageUrl };
-        const rembgPred = await createPrediction(REMBG_VERSION, rembgInput);
-        
-        // Handle rate limiting
-        if (rembgPred.rateLimited) {
-          console.log(`Rate limited, need to wait ${rembgPred.retryAfter}s`);
-          retryCount++;
-          continue;
-        }
-        
-        if (rembgPred.id) {
-          console.log('rembg prediction created:', rembgPred.id);
-          const rembgResult = await waitForPrediction(rembgPred.id);
-          
-          console.log('rembg result status:', rembgResult.status);
-          
-          if (rembgResult.status === 'succeeded' && rembgResult.output) {
-            // Handle different output formats
-            let rembgOutput = rembgResult.output;
-            
-            // If it's an array, get first element
-            if (Array.isArray(rembgOutput)) {
-              rembgOutput = rembgOutput[0];
-            }
-            
-            // Validate it's a proper URL
-            if (rembgOutput && typeof rembgOutput === 'string' && rembgOutput.startsWith('http')) {
-              finalImageUrl = rembgOutput;
-              rembgSuccess = true;
-              console.log('SUCCESS - Transparent version:', finalImageUrl);
-            } else {
-              console.error('rembg output format unexpected:', typeof rembgOutput, rembgOutput);
-            }
-          } else {
-            console.error('rembg prediction failed:', rembgResult.status, rembgResult.error);
-          }
-        } else {
-          console.error('Failed to create rembg prediction:', rembgPred);
-        }
-      } catch (rembgError) {
-        console.error('rembg threw error:', rembgError);
-      }
+    if (rembgPred.id) {
+      const rembgResult = await waitForPrediction(rembgPred.id);
       
-      if (!rembgSuccess) {
-        retryCount++;
-        console.log(`rembg attempt ${retryCount} failed, will retry...`);
+      if (rembgResult.status === 'succeeded' && rembgResult.output) {
+        let rembgOutput = rembgResult.output;
+        
+        if (Array.isArray(rembgOutput)) {
+          rembgOutput = rembgOutput[0];
+        }
+        
+        if (rembgOutput && typeof rembgOutput === 'string' && rembgOutput.startsWith('http')) {
+          finalImageUrl = rembgOutput;
+          console.log('Transparent version:', finalImageUrl);
+        }
+      } else {
+        console.error('rembg failed:', rembgResult.error);
       }
-    }
-    
-    if (!rembgSuccess) {
-      console.log('rembg failed after retries, returning original FLUX image');
+    } else {
+      console.error('Failed to create rembg prediction:', rembgPred);
     }
 
     // Deduct credit for generation
@@ -175,13 +127,12 @@ export default async function handler(req, res) {
     }
     
     // Return the transparent image URL with cache-busting
-    // Add timestamp to prevent browser/API caching of old non-transparent results
     const cacheBuster = Date.now();
     const finalUrlWithCache = finalImageUrl.includes('?') 
       ? `${finalImageUrl}&cb=${cacheBuster}` 
       : `${finalImageUrl}?cb=${cacheBuster}`;
     
-    console.log('Final transparent URL:', finalUrlWithCache);
+    console.log('Final URL:', finalUrlWithCache);
     
     // Disable caching on this response
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -191,8 +142,7 @@ export default async function handler(req, res) {
     res.status(200).json({ 
       url: finalUrlWithCache, 
       subjectType: promptResult.subjectType,
-      prompt: fullPrompt,
-      rembgSuccess: rembgSuccess
+      prompt: fullPrompt 
     });
     
   } catch (error) {
