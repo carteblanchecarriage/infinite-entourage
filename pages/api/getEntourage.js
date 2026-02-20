@@ -35,10 +35,10 @@ async function waitForPrediction(id) {
 }
 
 // Validate credits and return result
-function validateCredits(fingerprint, clientCredits, isAdmin) {
-  // Admin bypass - unlimited generation
-  if (isAdmin) {
-    return { allowed: true, isAdmin: true, remainingCredits: 999999 };
+function validateCredits(fingerprint, clientCredits, isAdmin, isInfinite) {
+  // Admin or infinite mode bypass - unlimited generation
+  if (isAdmin || isInfinite) {
+    return { allowed: true, isAdmin: true, isInfinite: true, remainingCredits: 999999 };
   }
   
   // Check free tier usage server-side
@@ -85,7 +85,7 @@ export default async function handler(req, res) {
   }
 
   const data = typeof body === 'string' ? JSON.parse(body) : body;
-  const { prompt, style, fingerprint, credits: clientCredits } = data;
+  const { prompt, style, fingerprint, credits: clientCredits, infiniteMode } = data;
   
   if (!prompt || prompt.length < 3) {
     return res.status(400).json({ error: 'Prompt too short' });
@@ -95,12 +95,18 @@ export default async function handler(req, res) {
   // Usage: POST /api/getEntourage?adminKey=YOUR_SECRET_KEY
   const isAdmin = query.adminKey && query.adminKey === ADMIN_KEY;
   
+  // Check for infinite mode from client (secret code unlocked)
+  const isInfinite = infiniteMode === true;
+  
   if (isAdmin) {
     console.log('🔑 Admin generation requested');
   }
+  if (isInfinite) {
+    console.log('♾️ Infinite mode generation');
+  }
 
   // Validate credits
-  const creditCheck = validateCredits(fingerprint, clientCredits, isAdmin);
+  const creditCheck = validateCredits(fingerprint, clientCredits, isAdmin, isInfinite);
   
   if (!creditCheck.allowed) {
     return res.status(402).json({ 
@@ -121,8 +127,10 @@ export default async function handler(req, res) {
     console.log('Style:', promptResult.style);
     if (creditCheck.isFreeTier) {
       console.log('Free tier usage:', creditCheck.freeUsed, '/ 3');
+    } else if (creditCheck.isInfinite) {
+      console.log('♾️ Infinite mode - no charge');
     } else if (creditCheck.isAdmin) {
-      console.log('Admin generation - no charge');
+      console.log('🔑 Admin generation - no charge');
     } else {
       console.log('Paid credit usage, remaining:', creditCheck.remainingCredits);
     }
@@ -203,6 +211,7 @@ export default async function handler(req, res) {
       subjectType: promptResult.subjectType,
       prompt: fullPrompt,
       isAdmin: creditCheck.isAdmin || false,
+      isInfinite: creditCheck.isInfinite || false,
       isFreeTier: creditCheck.isFreeTier || false,
       remainingCredits: creditCheck.remainingCredits,
       freeTierUsed: creditCheck.freeUsed || 0

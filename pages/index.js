@@ -108,7 +108,8 @@ export default function Home() {
           prompt, 
           style,
           fingerprint,
-          credits
+          credits,
+          infiniteMode
         }),
       });
       
