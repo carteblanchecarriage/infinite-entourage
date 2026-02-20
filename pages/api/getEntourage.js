@@ -95,18 +95,37 @@ export default async function handler(req, res) {
 
     // Always remove background for clean entourage output
     console.log('Removing background with rembg...');
+    console.log('Input image URL:', finalImageUrl);
+    
     const rembgInput = { image: finalImageUrl };
     const rembgPred = await createPrediction(REMBG_VERSION, rembgInput);
     
+    console.log('rembg prediction created:', rembgPred.id);
+    
     if (rembgPred.id) {
       const rembgResult = await waitForPrediction(rembgPred.id);
+      console.log('rembg result status:', rembgResult.status);
+      console.log('rembg result output:', rembgResult.output);
       
       if (rembgResult.status === 'succeeded' && rembgResult.output) {
-        finalImageUrl = rembgResult.output[0];
-        console.log('Transparent version:', finalImageUrl);
+        // Handle different output formats
+        let rembgOutput = rembgResult.output;
+        if (Array.isArray(rembgOutput)) {
+          rembgOutput = rembgOutput[0];
+        }
+        
+        if (rembgOutput && typeof rembgOutput === 'string') {
+          finalImageUrl = rembgOutput;
+          console.log('Transparent version:', finalImageUrl);
+        } else {
+          console.error('rembg output format unexpected:', rembgOutput);
+        }
       } else {
-        console.error('rembg failed, returning original');
+        console.error('rembg failed:', rembgResult.error || 'No output');
+        console.error('rembg full result:', JSON.stringify(rembgResult, null, 2));
       }
+    } else {
+      console.error('Failed to create rembg prediction:', rembgPred);
     }
 
     // Deduct credit for generation
