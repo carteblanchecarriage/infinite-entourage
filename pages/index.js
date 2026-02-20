@@ -245,15 +245,27 @@ export default function Home() {
 
         {/* HERO */}
         <div className="mb-12 border-4 border-black p-6 md:p-8">
-          <h1 className="text-4xl md:text-6xl font-black mb-4 leading-none">
-            GENERATE<br/>TRANSPARENT<br/>ENTOURAGE
-          </h1>
-          <p className="text-lg md:text-xl font-bold">
-            AI-GENERATED ASSETS FOR ARCHITECTURAL RENDERINGS
-          </p>
-          <p className="text-sm md:text-base mt-2 text-gray-600">
-            PEOPLE • ANIMALS • VEHICLES • PLANTS • OBJECTS
-          </p>
+          <div className="flex flex-col md:flex-row gap-6 items-center">
+            <div className="flex-1">
+              <h1 className="text-4xl md:text-6xl font-black mb-4 leading-none">
+                GENERATE<br/>TRANSPARENT<br/>ENTOURAGE
+              </h1>
+              <p className="text-lg md:text-xl font-bold">
+                AI-GENERATED ASSETS FOR ARCHITECTURAL RENDERINGS
+              </p>
+              <p className="text-sm md:text-base mt-2 text-gray-600">
+                PEOPLE • ANIMALS • VEHICLES • PLANTS • OBJECTS
+              </p>
+            </div>
+            <div className="w-full md:w-64 flex-shrink-0">
+              <img
+                src="/example-lemon-tree-clay-pot.png"
+                alt="Lemon tree in clay pot example"
+                className="w-full border-2 border-black"
+              />
+              <p className="text-xs text-gray-500 mt-2 text-center">Example: Lemon tree in clay pot</p>
+            </div>
+          </div>
         </div>
 
         {/* EXAMPLES */}
