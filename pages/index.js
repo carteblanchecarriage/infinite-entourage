@@ -224,15 +224,15 @@ export default function Home() {
           <ul className="space-y-1 text-base md:text-lg font-bold">
             <li 
               className="cursor-pointer hover:bg-black hover:text-white p-2"
-              onClick={() => setPrompt('businessman walking with briefcase')}
+              onClick={() => setPrompt('rusty truck')}
             >
-              → BUSINESSMAN WALKING WITH BRIEFCASE
+              → RUSTY TRUCK
             </li>
             <li 
               className="cursor-pointer hover:bg-black hover:text-white p-2"
-              onClick={() => setPrompt('red road bicycle side view')}
+              onClick={() => setPrompt('lemon tree in a clay pot')}
             >
-              → RED ROAD BICYCLE SIDE VIEW
+              → LEMON TREE IN A CLAY POT
             </li>
             <li 
               className="cursor-pointer hover:bg-black hover:text-white p-2"
