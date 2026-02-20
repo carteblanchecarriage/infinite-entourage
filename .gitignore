@@ -48,3 +48,9 @@ test-outputs/
 bad-outputs/
 illustration-examples/
 *.log
+
+# Test scripts and outputs
+test-*.js
+test-*.png
+test-*.jpg
+test-*.webp
