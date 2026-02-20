@@ -34,6 +34,7 @@ export default function Home() {
   const [freeUsed, setFreeUsed] = useState(0);
   const [fingerprint, setFingerprint] = useState('');
   const [showCreditPrompt, setShowCreditPrompt] = useState(false);
+  const [infiniteMode, setInfiniteMode] = useState(false);
 
   const styles = [
     { id: 'realistic', label: 'REALISTIC' },
@@ -57,7 +58,27 @@ export default function Home() {
     if (storedFreeUsed) {
       setFreeUsed(parseInt(storedFreeUsed, 10));
     }
+    
+    // Check for infinite mode
+    const storedInfinite = localStorage.getItem('ie_infinite_mode');
+    if (storedInfinite === 'true') {
+      setInfiniteMode(true);
+    }
   }, []);
+
+  // Handle prompt changes with secret code detection
+  const handlePromptChange = (e) => {
+    const value = e.target.value;
+    setPrompt(value);
+    
+    // Secret unlock: type "infinite" to activate unlimited mode
+    if (value.toLowerCase().trim() === 'infinite' && !infiniteMode) {
+      setInfiniteMode(true);
+      localStorage.setItem('ie_infinite_mode', 'true');
+      setError('🔓 INFINITE MODE ACTIVATED - Unlimited generations!');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
 
   async function generate() {
     if (prompt.length < 3) {
@@ -65,11 +86,13 @@ export default function Home() {
       return;
     }
     
-    // Check if user has credits before attempting
-    const totalAvailable = credits + (3 - freeUsed);
-    if (totalAvailable < 1) {
-      setShowCreditPrompt(true);
-      return;
+    // Skip credit check if infinite mode is active
+    if (!infiniteMode) {
+      const totalAvailable = credits + (3 - freeUsed);
+      if (totalAvailable < 1) {
+        setShowCreditPrompt(true);
+        return;
+      }
     }
     
     setResult('');
@@ -101,19 +124,21 @@ export default function Home() {
       
       setResult(data.url);
       
-      // Update credits based on response
-      if (data.isFreeTier) {
-        // Used free tier
-        const newFreeUsed = data.freeTierUsed || freeUsed + 1;
-        setFreeUsed(newFreeUsed);
-        localStorage.setItem('ie_free_used', newFreeUsed.toString());
-      } else if (!data.isAdmin) {
-        // Used paid credits
-        const newCredits = data.remainingCredits || credits - 1;
-        setCredits(newCredits);
-        localStorage.setItem('ie_credits', newCredits.toString());
+      // Update credits based on response (skip if infinite mode)
+      if (!infiniteMode) {
+        if (data.isFreeTier) {
+          // Used free tier
+          const newFreeUsed = data.freeTierUsed || freeUsed + 1;
+          setFreeUsed(newFreeUsed);
+          localStorage.setItem('ie_free_used', newFreeUsed.toString());
+        } else if (!data.isAdmin) {
+          // Used paid credits
+          const newCredits = data.remainingCredits || credits - 1;
+          setCredits(newCredits);
+          localStorage.setItem('ie_credits', newCredits.toString());
+        }
       }
-      // Admin generations don't deduct credits
+      // Admin/infinite generations don't deduct credits
       
     } catch (e) {
       setError(e.message || 'ERROR');
@@ -135,10 +160,10 @@ export default function Home() {
           </Link>
           <div className="flex items-center gap-4">
             {/* Credit counter */}
-            <div className="flex items-center gap-2 border-2 border-black px-3 py-2">
-              <span className="text-base md:text-lg font-bold">{totalCredits}</span>
-              <span className="text-sm text-gray-600">CREDITS</span>
-              {freeRemaining > 0 && (
+            <div className={`flex items-center gap-2 border-2 border-black px-3 py-2 ${infiniteMode ? 'bg-purple-100 border-purple-500' : ''}`}>
+              <span className="text-base md:text-lg font-bold">{infiniteMode ? '∞' : totalCredits}</span>
+              <span className="text-sm text-gray-600">{infiniteMode ? 'INFINITE' : 'CREDITS'}</span>
+              {!infiniteMode && freeRemaining > 0 && (
                 <span className="text-xs bg-green-100 text-green-800 px-2 py-1">
                   {freeRemaining} FREE
                 </span>
@@ -227,10 +252,13 @@ export default function Home() {
           </label>
           <textarea
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
+            onChange={handlePromptChange}
             placeholder="person, dog, car, tree, bench, bicycle, etc..."
-            className="w-full text-lg md:text-xl p-4 border-4 border-black font-mono resize-none h-32 focus:outline-none focus:bg-black focus:text-white transition"
+            className={`w-full text-lg md:text-xl p-4 border-4 border-black font-mono resize-none h-32 focus:outline-none focus:bg-black focus:text-white transition ${infiniteMode ? 'border-purple-500 bg-purple-50' : ''}`}
           />
+          {infiniteMode && (
+            <p className="text-sm text-purple-600 font-bold mt-2">🔓 INFINITE MODE ACTIVE</p>
+          )}
         </div>
 
         {/* STYLE */}
@@ -254,7 +282,7 @@ export default function Home() {
         </div>
 
         {/* GENERATE */}
-        {totalCredits < 1 ? (
+        {!infiniteMode && totalCredits < 1 ? (
           <Link
             href="/credits"
             className="block w-full text-xl md:text-3xl font-black py-4 md:py-6 border-4 border-black bg-black text-white hover:bg-white hover:text-black transition text-center"
@@ -265,14 +293,14 @@ export default function Home() {
           <button
             onClick={generate}
             disabled={processing}
-            className="w-full text-xl md:text-3xl font-black py-4 md:py-6 border-4 border-black bg-black text-white hover:bg-white hover:text-black transition disabled:opacity-50"
+            className={`w-full text-xl md:text-3xl font-black py-4 md:py-6 border-4 border-black bg-black text-white hover:bg-white hover:text-black transition disabled:opacity-50 ${infiniteMode ? 'border-purple-500 bg-purple-600 hover:bg-purple-100 hover:text-purple-600' : ''}`}
           >
-            {processing ? 'GENERATING...' : result ? 'GENERATE AGAIN' : 'GENERATE'}
+            {processing ? 'GENERATING...' : result ? 'GENERATE AGAIN' : infiniteMode ? 'GENERATE (INFINITE)' : 'GENERATE'}
           </button>
         )}
 
         {error && (
-          <div className="mt-4 p-3 md:p-4 border-4 border-black bg-red-500 text-white font-bold text-base md:text-xl">
+          <div className={`mt-4 p-3 md:p-4 border-4 border-black font-bold text-base md:text-xl ${error.includes('INFINITE') ? 'bg-purple-500 text-white' : 'bg-red-500 text-white'}`}>
             {error}
           </div>
         )}
