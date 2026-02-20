@@ -3,15 +3,15 @@ import Link from 'next/link';
 
 // Map package amounts to Stripe price IDs from env
 const PRICE_ID_MAP = {
-  10: process.env.NEXT_PUBLIC_STRIPE_PRICE_10,
-  50: process.env.NEXT_PUBLIC_STRIPE_PRICE_50,
-  100: process.env.NEXT_PUBLIC_STRIPE_PRICE_100,
+  500: process.env.NEXT_PUBLIC_STRIPE_PRICE_500,
+  1000: process.env.NEXT_PUBLIC_STRIPE_PRICE_1000,
+  2000: process.env.NEXT_PUBLIC_STRIPE_PRICE_2000,
 };
 
 const CREDIT_PACKAGES = [
-  { id: 10, amount: 10, price: '$1.00', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_10' },
-  { id: 50, amount: 50, price: '$5.00', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_50' },
-  { id: 100, amount: 100, price: '$10.00', savings: 'BEST VALUE', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_100' },
+  { id: 500, amount: 500, price: '$5.00', pricePerCredit: '$0.01', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_500' },
+  { id: 1000, amount: 1000, price: '$10.00', pricePerCredit: '$0.01', savings: 'POPULAR', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_1000' },
+  { id: 2000, amount: 2000, price: '$20.00', pricePerCredit: '$0.01', savings: 'BEST VALUE', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_2000' },
 ];
 
 export default function Credits() {
@@ -145,7 +145,7 @@ export default function Credits() {
               <div className="flex justify-between items-center">
                 <div>
                   <div className="text-2xl font-black">{pkg.amount} CREDITS</div>
-                  <div className="text-lg">{pkg.price}</div>
+                  <div className="text-lg">{pkg.price} <span className="text-sm text-gray-500">({pkg.pricePerCredit}/credit)</span></div>
                 </div>
                 {pkg.savings && (
                   <div className="text-green-600 font-bold text-right">
