@@ -224,9 +224,9 @@ export default function Home() {
           <ul className="space-y-1 text-base md:text-lg font-bold">
             <li 
               className="cursor-pointer hover:bg-black hover:text-white p-2"
-              onClick={() => setPrompt('rusty truck')}
+              onClick={() => setPrompt('rusty vintage pickup truck side view')}
             >
-              → RUSTY TRUCK
+              → RUSTY VINTAGE PICKUP TRUCK SIDE VIEW
             </li>
             <li 
               className="cursor-pointer hover:bg-black hover:text-white p-2"
