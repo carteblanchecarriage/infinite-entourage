@@ -3,15 +3,15 @@ import Link from 'next/link';
 
 // Map package amounts to Stripe price IDs from env
 const PRICE_ID_MAP = {
-  50: process.env.NEXT_PUBLIC_STRIPE_PRICE_50,
+  40: process.env.NEXT_PUBLIC_STRIPE_PRICE_40,
   100: process.env.NEXT_PUBLIC_STRIPE_PRICE_100,
-  200: process.env.NEXT_PUBLIC_STRIPE_PRICE_200,
+  250: process.env.NEXT_PUBLIC_STRIPE_PRICE_250,
 };
 
 const CREDIT_PACKAGES = [
-  { id: 50, amount: 50, price: '$5.00', pricePerCredit: '$0.10', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_50' },
-  { id: 100, amount: 100, price: '$10.00', pricePerCredit: '$0.10', savings: 'POPULAR', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_100' },
-  { id: 200, amount: 200, price: '$20.00', pricePerCredit: '$0.10', savings: 'BEST VALUE', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_200' },
+  { id: 40, amount: 40, price: '$5.00', pricePerCredit: '$0.125', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_40' },
+  { id: 100, amount: 100, price: '$10.00', pricePerCredit: '$0.10', savings: 'SAVE 20%', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_100' },
+  { id: 250, amount: 250, price: '$20.00', pricePerCredit: '$0.08', savings: 'BEST VALUE • SAVE 36%', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_250' },
 ];
 
 export default function Credits() {
