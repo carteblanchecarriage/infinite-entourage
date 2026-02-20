@@ -1,18 +1,24 @@
 const { buildEntouragePrompt } = require('../../lib/promptBuilder');
+const { createClient } = require('@supabase/supabase-js');
 
 const FLUX_VERSION = '6e4a938f85952bdabcc15aa329178c4d681c52bf25a0342403287dc26944661d';
 const REMBG_VERSION = 'fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003';
 const API_TOKEN = process.env.REPLICATE_API_TOKEN;
 const ADMIN_KEY = process.env.ADMIN_GENERATION_KEY;
 
-// Simple in-memory store for free tier tracking (resets on deploy, but that's ok)
-// For production, use Redis or database
-const freeTierTracker = new Map(); // fingerprint -> count
-const ipTracker = new Map(); // ip -> { count, resetTime }
+// Initialize Supabase client (server-side)
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
 const COST_PER_IMAGE = 1;
 const FREE_LIMIT = 3;
-const IP_FREE_LIMIT = 5; // Slightly higher for IP-based tracking
 const DAILY_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// In-memory cache for IP tracking (still needed for rate limiting)
+const ipTracker = new Map(); // ip -> { count, resetTime }
+const IP_FREE_LIMIT = 5; // IP-based daily limit
 
 async function createPrediction(version, input) {
   const res = await fetch('https://api.replicate.com/v1/predictions', {
@@ -38,18 +44,64 @@ async function waitForPrediction(id) {
   return result;
 }
 
-// Validate credits and return result
-function validateCredits(fingerprint, clientCredits, isAdmin, isInfinite, clientIp) {
-  // Admin or infinite mode bypass - unlimited generation
-  if (isAdmin || isInfinite) {
-    return { allowed: true, isAdmin: true, isInfinite: true, remainingCredits: 999999 };
+// Get or create user in Supabase
+async function getOrCreateUser(fingerprint) {
+  // Try to find existing user
+  let { data: user, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('fingerprint', fingerprint)
+    .single();
+  
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error fetching user:', error);
+    return null;
   }
   
-  // Check IP-based rate limiting first (stronger than fingerprint)
+  // Create new user if not found
+  if (!user) {
+    const { data: newUser, error: createError } = await supabase
+      .from('users')
+      .insert([
+        { 
+          fingerprint: fingerprint,
+          credits: 0,
+          free_credits_used: 0,
+          created_at: new Date().toISOString()
+        }
+      ])
+      .select()
+      .single();
+    
+    if (createError) {
+      console.error('Error creating user:', createError);
+      return null;
+    }
+    
+    user = newUser;
+    console.log('Created new user:', user.id);
+  }
+  
+  return user;
+}
+
+// Validate credits using Supabase
+async function validateCredits(fingerprint, isAdmin, isInfinite, clientIp) {
+  // Admin or infinite mode bypass - unlimited generation
+  if (isAdmin || isInfinite) {
+    return { allowed: true, isAdmin, isInfinite, remainingCredits: 999999, userId: null };
+  }
+  
+  // Get or create user
+  const user = await getOrCreateUser(fingerprint);
+  if (!user) {
+    return { allowed: false, error: 'Failed to access user account', code: 'USER_ERROR' };
+  }
+  
+  // Check IP-based rate limiting
   const now = Date.now();
   let ipData = ipTracker.get(clientIp);
   
-  // Reset IP counter if it's a new day
   if (ipData && now > ipData.resetTime) {
     ipData = null;
   }
@@ -59,48 +111,87 @@ function validateCredits(fingerprint, clientCredits, isAdmin, isInfinite, client
     ipTracker.set(clientIp, ipData);
   }
   
-  // Check fingerprint-based free tier
-  const freeUsed = freeTierTracker.get(fingerprint) || 0;
+  const freeUsed = user.free_credits_used || 0;
+  const paidCredits = user.credits || 0;
+  const freeRemaining = Math.max(0, FREE_LIMIT - freeUsed);
+  const totalCredits = paidCredits + freeRemaining;
   
-  // Must pass BOTH checks to get free credits
-  // IP limit is slightly higher (5 vs 3) to allow some flexibility
-  if (freeUsed < FREE_LIMIT && ipData.count < IP_FREE_LIMIT) {
-    // Increment both trackers
-    freeTierTracker.set(fingerprint, freeUsed + 1);
-    ipData.count += 1;
+  // Check if user has any credits
+  if (totalCredits < COST_PER_IMAGE) {
+    return { 
+      allowed: false, 
+      error: 'No credits remaining', 
+      code: 'NO_CREDITS',
+      remainingCredits: 0,
+      userId: user.id
+    };
+  }
+  
+  // Check IP limit for free tier
+  const usingFreeCredit = freeRemaining > 0;
+  if (usingFreeCredit && ipData.count >= IP_FREE_LIMIT) {
+    // If they have paid credits, use those instead
+    if (paidCredits >= COST_PER_IMAGE) {
+      // Deduct paid credit
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ credits: paidCredits - COST_PER_IMAGE })
+        .eq('id', user.id);
+      
+      if (updateError) {
+        console.error('Error deducting credit:', updateError);
+        return { allowed: false, error: 'Failed to process credit', code: 'SYSTEM_ERROR' };
+      }
+      
+      return {
+        allowed: true,
+        isFreeTier: false,
+        remainingCredits: paidCredits - COST_PER_IMAGE + freeRemaining,
+        freeUsed: freeUsed,
+        userId: user.id
+      };
+    }
     
-    return { 
-      allowed: true, 
-      isFreeTier: true, 
-      remainingCredits: Math.min(FREE_LIMIT - freeUsed - 1, IP_FREE_LIMIT - ipData.count),
-      freeUsed: freeUsed + 1
-    };
-  }
-  
-  // Check paid credits
-  if (clientCredits && clientCredits >= COST_PER_IMAGE) {
-    return { 
-      allowed: true, 
-      isFreeTier: false, 
-      remainingCredits: clientCredits - COST_PER_IMAGE 
-    };
-  }
-  
-  // No credits available - provide specific reason
-  if (ipData.count >= IP_FREE_LIMIT) {
     return { 
       allowed: false, 
       error: 'Daily free limit reached from this device', 
       code: 'NO_CREDITS',
-      remainingCredits: 0
+      remainingCredits: 0,
+      userId: user.id
     };
   }
   
-  return { 
-    allowed: false, 
-    error: 'No credits remaining', 
-    code: 'NO_CREDITS',
-    remainingCredits: 0
+  // Deduct credit (free first, then paid)
+  let newFreeUsed = freeUsed;
+  let newPaidCredits = paidCredits;
+  
+  if (freeRemaining > 0) {
+    newFreeUsed += 1;
+    ipData.count += 1;
+  } else {
+    newPaidCredits -= COST_PER_IMAGE;
+  }
+  
+  // Update user in Supabase
+  const { error: updateError } = await supabase
+    .from('users')
+    .update({ 
+      credits: newPaidCredits,
+      free_credits_used: newFreeUsed
+    })
+    .eq('id', user.id);
+  
+  if (updateError) {
+    console.error('Error updating credits:', updateError);
+    return { allowed: false, error: 'Failed to process credit', code: 'SYSTEM_ERROR' };
+  }
+  
+  return {
+    allowed: true,
+    isFreeTier: newFreeUsed > freeUsed,
+    remainingCredits: newPaidCredits + Math.max(0, FREE_LIMIT - newFreeUsed),
+    freeUsed: newFreeUsed,
+    userId: user.id
   };
 }
 
@@ -116,17 +207,14 @@ export default async function handler(req, res) {
   }
 
   const data = typeof body === 'string' ? JSON.parse(body) : body;
-  const { prompt, style, fingerprint, credits: clientCredits, infiniteMode } = data;
+  const { prompt, style, fingerprint, infiniteMode } = data;
   
   if (!prompt || prompt.length < 3) {
     return res.status(400).json({ error: 'Prompt too short' });
   }
   
-  // Check for admin key in query params (secret unlimited URL)
-  // Usage: POST /api/getEntourage?adminKey=YOUR_SECRET_KEY
+  // Check for admin key in query params
   const isAdmin = query.adminKey && query.adminKey === ADMIN_KEY;
-  
-  // Check for infinite mode from client (secret code unlocked)
   const isInfinite = infiniteMode === true;
   
   // Get client IP for rate limiting
@@ -135,15 +223,11 @@ export default async function handler(req, res) {
                    req.socket?.remoteAddress || 
                    'unknown';
   
-  if (isAdmin) {
-    console.log('🔑 Admin generation requested');
-  }
-  if (isInfinite) {
-    console.log('♾️ Infinite mode generation');
-  }
+  if (isAdmin) console.log('🔑 Admin generation requested');
+  if (isInfinite) console.log('♾️ Infinite mode generation');
 
-  // Validate credits with IP tracking
-  const creditCheck = validateCredits(fingerprint, clientCredits, isAdmin, isInfinite, clientIp);
+  // Validate credits using Supabase
+  const creditCheck = await validateCredits(fingerprint, isAdmin, isInfinite, clientIp);
   
   if (!creditCheck.allowed) {
     return res.status(402).json({ 
@@ -155,24 +239,20 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Use the advanced prompt builder
+    // Build prompt
     const promptResult = buildEntouragePrompt(prompt, style);
     const fullPrompt = promptResult.prompt;
     
     console.log('Subject type:', promptResult.subjectType);
-    console.log('Diversity injected:', promptResult.diversityInjected);
-    console.log('Style:', promptResult.style);
-    if (creditCheck.isFreeTier) {
-      console.log('Free tier usage:', creditCheck.freeUsed, '/ 3');
-    } else if (creditCheck.isInfinite) {
-      console.log('♾️ Infinite mode - no charge');
-    } else if (creditCheck.isAdmin) {
-      console.log('🔑 Admin generation - no charge');
-    } else {
-      console.log('Paid credit usage, remaining:', creditCheck.remainingCredits);
-    }
+    console.log('User:', creditCheck.userId);
+    if (creditCheck.isFreeTier) console.log('Free tier usage:', creditCheck.freeUsed, '/ 3');
+    else if (creditCheck.isInfinite) console.log('♾️ Infinite mode - no charge');
+    else if (creditCheck.isAdmin) console.log('🔑 Admin generation - no charge');
+    else console.log('Paid credit usage, remaining:', creditCheck.remainingCredits);
 
     console.log('Generating with prompt:', fullPrompt);
+    
+    // Generate image
     const fluxInput = {
       prompt: fullPrompt,
       go_fast: true,
@@ -198,7 +278,7 @@ export default async function handler(req, res) {
     let finalImageUrl = fluxResult.output[0];
     console.log('FLUX generated:', finalImageUrl);
 
-    // Always remove background for clean entourage output
+    // Remove background
     console.log('Removing background with rembg...');
     
     const rembgInput = { image: finalImageUrl };
@@ -225,12 +305,7 @@ export default async function handler(req, res) {
       console.error('Failed to create rembg prediction:', rembgPred);
     }
 
-    // Update free tier tracking if applicable
-    if (creditCheck.isFreeTier && fingerprint) {
-      freeTierTracker.set(fingerprint, creditCheck.freeUsed);
-    }
-    
-    // Return the transparent image URL with cache-busting
+    // Return the transparent image URL
     const cacheBuster = Date.now();
     const finalUrlWithCache = finalImageUrl.includes('?') 
       ? `${finalImageUrl}&cb=${cacheBuster}` 
@@ -238,7 +313,6 @@ export default async function handler(req, res) {
     
     console.log('Final URL:', finalUrlWithCache);
     
-    // Disable caching on this response
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');

@@ -50,7 +50,7 @@ export default function Home() {
     const fp = generateFingerprint();
     setFingerprint(fp);
     
-    // Load credits from localStorage
+    // Load from localStorage first (for immediate display)
     const storedCredits = localStorage.getItem('ie_credits');
     if (storedCredits) {
       setCredits(parseInt(storedCredits, 10));
@@ -77,6 +77,7 @@ export default function Home() {
         console.error('Failed to load gallery:', e);
       }
     }
+    
     // Load existing feedback
     const storedFeedback = localStorage.getItem('ie_feedback');
     if (storedFeedback) {
@@ -91,7 +92,27 @@ export default function Home() {
         console.error('Failed to load feedback:', e);
       }
     }
+    
+    // Fetch credits from Supabase (server-side source of truth)
+    fetchCredits(fp);
   }, []);
+  
+  // Fetch credits from Supabase
+  const fetchCredits = async (fp) => {
+    try {
+      const res = await fetch(`/api/get-credits?fingerprint=${fp}`);
+      if (res.ok) {
+        const data = await res.json();
+        setCredits(data.credits || 0);
+        setFreeUsed(data.freeUsed || 0);
+        // Update localStorage to match
+        localStorage.setItem('ie_credits', (data.credits || 0).toString());
+        localStorage.setItem('ie_free_used', (data.freeUsed || 0).toString());
+      }
+    } catch (err) {
+      console.error('Failed to fetch credits:', err);
+    }
+  };
 
   // Handle prompt changes with secret code detection
   const handlePromptChange = (e) => {
