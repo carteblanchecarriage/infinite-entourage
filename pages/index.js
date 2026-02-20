@@ -37,6 +37,7 @@ export default function Home() {
   const [infiniteMode, setInfiniteMode] = useState(false);
   const [gallery, setGallery] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [feedbackGiven, setFeedbackGiven] = useState({}); // Track which images have feedback
 
   const styles = [
     { id: 'realistic', label: 'REALISTIC' },
@@ -74,6 +75,20 @@ export default function Home() {
         setGallery(JSON.parse(storedGallery));
       } catch (e) {
         console.error('Failed to load gallery:', e);
+      }
+    }
+    // Load existing feedback
+    const storedFeedback = localStorage.getItem('ie_feedback');
+    if (storedFeedback) {
+      try {
+        const feedbackList = JSON.parse(storedFeedback);
+        const feedbackMap = {};
+        feedbackList.forEach(f => {
+          feedbackMap[f.imageId] = f.rating === 'bad' ? 'reported' : 'good';
+        });
+        setFeedbackGiven(feedbackMap);
+      } catch (e) {
+        console.error('Failed to load feedback:', e);
       }
     }
   }, []);
@@ -490,6 +505,85 @@ export default function Home() {
               >
                 🗑
               </button>
+            </div>
+            
+            {/* FEEDBACK SECTION */}
+            <div className="border-t border-gray-300 p-4 bg-gray-50">
+              {!feedbackGiven[selectedImage?.id] ? (
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 mb-3">How did this turn out?</p>
+                  <div className="flex justify-center gap-4">
+                    <button
+                      onClick={() => {
+                        const feedback = {
+                          imageId: selectedImage.id,
+                          prompt: selectedImage.prompt,
+                          style: selectedImage.style,
+                          rating: 'good',
+                          timestamp: new Date().toISOString()
+                        };
+                        const existing = JSON.parse(localStorage.getItem('ie_feedback') || '[]');
+                        localStorage.setItem('ie_feedback', JSON.stringify([...existing, feedback]));
+                        setFeedbackGiven({ ...feedbackGiven, [selectedImage.id]: 'good' });
+                      }}
+                      className="px-6 py-2 border-2 border-green-500 text-green-600 hover:bg-green-500 hover:text-white font-bold rounded"
+                    >
+                      👍 GOOD
+                    </button>
+                    <button
+                      onClick={() => setFeedbackGiven({ ...feedbackGiven, [selectedImage.id]: 'reporting' })}
+                      className="px-6 py-2 border-2 border-red-400 text-red-500 hover:bg-red-400 hover:text-white font-bold rounded"
+                    >
+                      👎 ISSUE
+                    </button>
+                  </div>
+                </div>
+              ) : feedbackGiven[selectedImage.id] === 'reporting' ? (
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 mb-3">What's wrong with this image?</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {[
+                      { label: 'Cut off / cropped', value: 'cropped' },
+                      { label: 'Duplicate objects', value: 'duplicate' },
+                      { label: 'Blurry / unclear', value: 'blurry' },
+                      { label: 'Wrong subject', value: 'wrong_subject' },
+                      { label: 'Background not removed', value: 'background' },
+                      { label: 'Missing item/prop', value: 'missing_prop' },
+                      { label: 'Other', value: 'other' }
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          const feedback = {
+                            imageId: selectedImage.id,
+                            prompt: selectedImage.prompt,
+                            style: selectedImage.style,
+                            rating: 'bad',
+                            issue: option.value,
+                            timestamp: new Date().toISOString()
+                          };
+                          const existing = JSON.parse(localStorage.getItem('ie_feedback') || '[]');
+                          localStorage.setItem('ie_feedback', JSON.stringify([...existing, feedback]));
+                          setFeedbackGiven({ ...feedbackGiven, [selectedImage.id]: 'reported' });
+                        }}
+                        className="px-3 py-2 text-sm border-2 border-gray-400 hover:border-black hover:bg-black hover:text-white rounded"
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setFeedbackGiven({ ...feedbackGiven, [selectedImage.id]: null })}
+                    className="mt-3 text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center text-green-600 font-bold">
+                  ✓ Thanks for the feedback!
+                </div>
+              )}
             </div>
           </div>
         </div>
