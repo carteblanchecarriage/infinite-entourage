@@ -263,7 +263,7 @@ export default function Home() {
                 alt="Lemon tree in clay pot"
                 className="w-full"
               />
-              <p className="text-xs text-gray-500 mt-2 text-center">lemon tree in clay pot</p>
+              <p className="text-xs text-gray-500 mt-2 text-center">lemon tree in a clay pot</p>
             </div>
           </div>
         </div>
