@@ -260,10 +260,10 @@ export default function Home() {
             <div className="w-full md:w-64 flex-shrink-0">
               <img
                 src="/example-lemon-tree-clay-pot.png"
-                alt="Lemon tree in clay pot example"
-                className="w-full border-2 border-black"
+                alt="Lemon tree in clay pot"
+                className="w-full"
               />
-              <p className="text-xs text-gray-500 mt-2 text-center">Example: Lemon tree in clay pot</p>
+              <p className="text-xs text-gray-500 mt-2 text-center">lemon tree in clay pot</p>
             </div>
           </div>
         </div>
