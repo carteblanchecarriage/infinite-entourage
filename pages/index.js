@@ -189,11 +189,6 @@ export default function Home() {
           <p className="text-sm md:text-base mt-2 text-gray-600">
             PEOPLE • ANIMALS • VEHICLES • PLANTS • OBJECTS
           </p>
-          {freeRemaining > 0 && (
-            <p className="text-sm mt-4 text-green-600 font-bold">
-              🎁 {freeRemaining} FREE IMAGES REMAINING
-            </p>
-          )}
         </div>
 
         {/* EXAMPLES */}
