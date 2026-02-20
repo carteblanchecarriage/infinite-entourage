@@ -254,6 +254,12 @@ export default function Home() {
           <textarea
             value={prompt}
             onChange={handlePromptChange}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                generate();
+              }
+            }}
             placeholder="person, dog, car, tree, bench, bicycle, etc..."
             className={`w-full text-lg md:text-xl p-4 border-4 border-black font-mono resize-none h-32 focus:outline-none focus:bg-black focus:text-white transition ${infiniteMode ? 'border-purple-500 bg-purple-50' : ''}`}
           />
