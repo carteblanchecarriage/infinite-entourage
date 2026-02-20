@@ -138,42 +138,49 @@ All prompts include:
 
 ## Usage Examples
 
-### Basic Usage
+Three examples showing the right level of detail for clean cutout results:
+
+### Example 1: Person Walking
 ```json
 POST /api/getEntourage
 {
-  "prompt": "person walking",
+  "prompt": "businessman walking with briefcase",
   "style": "realistic"
 }
-// Generates: diverse person (random race/gender/age) walking
 ```
+**Why this works:** Clear action (walking), specific role (businessman), prop (briefcase). No background elements like "on street" or "in park" — just the subject.
 
-### Specific Person
+### Example 2: Stationary Object
 ```json
 {
-  "prompt": "elderly Asian woman with cane",
+  "prompt": "red road bicycle side view",
   "style": "illustration"
 }
-// Generates: exactly as specified, no random diversity added
 ```
+**Why this works:** Specific object (road bicycle), color (red), angle (side view). No "against wall" or "leaning on fence" — those make background removal harder.
 
-### Animal
+### Example 3: Specific Person
 ```json
 {
-  "prompt": "golden retriever sitting",
+  "prompt": "elderly woman sitting on bench reading newspaper",
   "style": "realistic"
 }
-// Generates: dog with appropriate animal styling
 ```
+**Why this works:** Demographics (elderly woman), pose/action (sitting, reading), prop (newspaper). The bench is part of the entourage, not a background element.
 
-### Vehicle
-```json
-{
-  "prompt": "red sports car",
-  "style": "silhouette"
-}
-// Generates: car silhouette with appropriate vehicle framing
-```
+### Tips for Best Results
+
+**DO:**
+- Describe the subject clearly (who/what + what they're doing)
+- Include poses, clothing, props
+- Specify age, gender, style if you have preferences
+
+**DON'T:**
+- Add background elements ("in park", "against wall", "on street")
+- Include multiple subjects in one prompt
+- Request complex scenes or environments
+
+The system handles diversity automatically if you don't specify demographics — "person walking" becomes "young Black woman walking in casual athletic wear" automatically.
 
 ---
 
