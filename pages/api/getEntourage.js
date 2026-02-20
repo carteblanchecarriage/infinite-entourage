@@ -134,10 +134,22 @@ export default async function handler(req, res) {
       // await deductCredit(userId);
     }
     
-    // Return the transparent image URL
-    console.log('Final transparent URL:', finalImageUrl);
+    // Return the transparent image URL with cache-busting
+    // Add timestamp to prevent browser/API caching of old non-transparent results
+    const cacheBuster = Date.now();
+    const finalUrlWithCache = finalImageUrl.includes('?') 
+      ? `${finalImageUrl}&cb=${cacheBuster}` 
+      : `${finalImageUrl}?cb=${cacheBuster}`;
+    
+    console.log('Final transparent URL:', finalUrlWithCache);
+    
+    // Disable caching on this response
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
     res.status(200).json({ 
-      url: finalImageUrl, 
+      url: finalUrlWithCache, 
       subjectType: promptResult.subjectType,
       prompt: fullPrompt 
     });
