@@ -76,6 +76,35 @@ export default function Home() {
           </p>
         </div>
 
+        {/* EXAMPLES */}
+        <div className="mb-8 border-4 border-black p-4 md:p-6">
+          <h2 className="text-xl md:text-2xl font-black mb-4">EXAMPLE PROMPTS</h2>
+          <p className="text-sm text-gray-600 mb-3 font-bold">CLICK AN EXAMPLE TO USE IT</p>
+          <ul className="space-y-1 text-base md:text-lg font-bold">
+            <li 
+              className="cursor-pointer hover:bg-black hover:text-white p-2"
+              onClick={() => setPrompt('businessman walking with briefcase')}
+            >
+              → BUSINESSMAN WALKING WITH BRIEFCASE
+            </li>
+            <li 
+              className="cursor-pointer hover:bg-black hover:text-white p-2"
+              onClick={() => setPrompt('red road bicycle side view')}
+            >
+              → RED ROAD BICYCLE SIDE VIEW
+            </li>
+            <li 
+              className="cursor-pointer hover:bg-black hover:text-white p-2"
+              onClick={() => setPrompt('elderly woman sitting on bench reading newspaper')}
+            >
+              → ELDERLY WOMAN SITTING ON BENCH READING NEWSPAPER
+            </li>
+          </ul>
+          <p className="text-xs text-gray-500 mt-3">
+            TIP: DESCRIBE THE SUBJECT AND ACTION. AVOID BACKGROUNDS LIKE "ON STREET" OR "AGAINST WALL" — THEY MAKE BACKGROUND REMOVAL HARDER.
+          </p>
+        </div>
+
         {/* INPUT */}
         <div className="mb-8">
           <label className="block text-xl md:text-2xl font-bold mb-4">
@@ -124,88 +153,61 @@ export default function Home() {
           </div>
         )}
 
-        {/* RESULT */}
-        {processing && (
-          <div className="mt-8 md:mt-12 flex justify-center">
-            <div className="text-xl md:text-2xl font-bold animate-pulse">LOADING...</div>
-          </div>
-        )}
+        {/* RESULT - Static container to prevent layout shift */}
+        <div className="mt-8 md:mt-12 min-h-[500px]">
+          {processing && (
+            <div className="flex justify-center h-32 items-center">
+              <div className="text-xl md:text-2xl font-bold animate-pulse">LOADING...</div>
+            </div>
+          )}
 
-        {result && !processing && (
-          <div className="mt-8 md:mt-12 border-4 border-black p-3 md:p-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 border-b-2 border-black pb-2 gap-2">
-              <span className="text-lg md:text-xl font-bold">YOUR IMAGE</span>
-              <div className="flex gap-2 w-full sm:w-auto">
-                <button 
-                  onClick={async () => {
-                    try {
-                      const response = await fetch(result);
-                      const blob = await response.blob();
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `entourage-${Date.now()}.png`;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(url);
-                    } catch (err) {
-                      console.error('Download failed:', err);
-                      // Fallback: open in new tab
-                      window.open(result, '_blank');
-                    }
-                  }}
-                  className="flex-1 sm:flex-none text-base md:text-xl font-bold border-2 border-black px-3 md:px-4 py-1 hover:bg-black hover:text-white"
-                >
-                  DOWNLOAD ↓
-                </button>
-                <button 
-                  onClick={() => window.open(result, '_blank')}
-                  className="flex-1 sm:flex-none text-base md:text-xl font-bold border-2 border-black px-3 md:px-4 py-1 hover:bg-black hover:text-white text-center"
-                >
-                  OPEN ↗
-                </button>
+          {result && !processing && (
+            <div className="border-4 border-black p-3 md:p-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 border-b-2 border-black pb-2 gap-2">
+                <span className="text-lg md:text-xl font-bold">YOUR IMAGE</span>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button 
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(result);
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `entourage-${Date.now()}.png`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } catch (err) {
+                        console.error('Download failed:', err);
+                        // Fallback: open in new tab
+                        window.open(result, '_blank');
+                      }
+                    }}
+                    className="flex-1 sm:flex-none text-base md:text-xl font-bold border-2 border-black px-3 md:px-4 py-1 hover:bg-black hover:text-white"
+                  >
+                    DOWNLOAD ↓
+                  </button>
+                  <button 
+                    onClick={() => window.open(result, '_blank')}
+                    className="flex-1 sm:flex-none text-base md:text-xl font-bold border-2 border-black px-3 md:px-4 py-1 hover:bg-black hover:text-white text-center"
+                  >
+                    OPEN ↗
+                  </button>
+                </div>
+              </div>
+              <div className="flex justify-center bg-[url('/checkerboard.png')] bg-contain min-h-[400px]">
+                <Image
+                  src={result}
+                  alt="Generated"
+                  width={400}
+                  height={500}
+                  className="max-w-full h-auto"
+                />
               </div>
             </div>
-            <div className="flex justify-center bg-[url('/checkerboard.png')] bg-contain">
-              <Image
-                src={result}
-                alt="Generated"
-                width={400}
-                height={500}
-                className="max-w-full h-auto"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* EXAMPLES */}
-        <div className="mt-16 border-t-4 border-black pt-8">
-          <h2 className="text-2xl md:text-3xl font-black mb-6">EXAMPLE PROMPTS</h2>
-          <p className="text-sm text-gray-600 mb-4 font-bold">CLICK AN EXAMPLE TO USE IT</p>
-          <ul className="space-y-2 text-base md:text-xl font-bold">
-            <li 
-              className="cursor-pointer hover:bg-black hover:text-white p-2"
-              onClick={() => setPrompt('businessman walking with briefcase')}
-            >
-              → BUSINESSMAN WALKING WITH BRIEFCASE
-            </li>
-            <li 
-              className="cursor-pointer hover:bg-black hover:text-white p-2"
-              onClick={() => setPrompt('red road bicycle side view')}
-            >
-              → RED ROAD BICYCLE SIDE VIEW
-            </li>
-            <li 
-              className="cursor-pointer hover:bg-black hover:text-white p-2"
-              onClick={() => setPrompt('elderly woman sitting on bench reading newspaper')}
-            >
-              → ELDERLY WOMAN SITTING ON BENCH READING NEWSPAPER
-            </li>
-          </ul>
-          <p className="text-xs text-gray-500 mt-4">
-            TIP: DESCRIBE THE SUBJECT AND ACTION. AVOID BACKGROUNDS LIKE "ON STREET" OR "AGAINST WALL" — THEY MAKE BACKGROUND REMOVAL HARDER.
-          </p>
+          )}
         </div>
 
       </main>
