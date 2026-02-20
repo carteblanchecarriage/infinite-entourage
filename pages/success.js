@@ -33,16 +33,21 @@ export default function Success() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white text-black font-mono p-6">
-      <header className="border-b-4 border-black p-6 mb-8">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <Link href="/" className="text-4xl font-black tracking-tighter hover:bg-black hover:text-white px-2">
+    <div className="min-h-screen bg-white text-black font-mono">
+      <header className="border-b-4 border-black p-4 md:p-6">
+        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+          <Link href="/" className="text-2xl md:text-4xl font-black tracking-tighter hover:bg-black hover:text-white px-2">
             INFINITE ENTOURAGE
           </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/" className="text-base md:text-xl font-bold border-2 border-black px-3 md:px-4 py-2 hover:bg-black hover:text-white transition">
+              ← BACK
+            </Link>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto text-center">
+      <main className="max-w-4xl mx-auto p-4 md:p-6 text-center">
         {loading ? (
           <div className="text-2xl font-bold">Verifying purchase...⏳</div>
         ) : credits ? (
@@ -74,6 +79,13 @@ export default function Success() {
           </>
         )}
       </main>
+
+      {/* FOOTER */}
+      <footer className="border-t-4 border-black p-4 md:p-6 mt-8 md:mt-16">
+        <div className="max-w-4xl mx-auto text-center font-bold text-sm md:text-base">
+          INFINITE ENTOURAGE • PEOPLE • ANIMALS • VEHICLES • PLANTS • OBJECTS
+        </div>
+      </footer>
     </div>
   );
 }
