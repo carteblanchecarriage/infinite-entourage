@@ -7,8 +7,12 @@ const ADMIN_KEY = process.env.ADMIN_GENERATION_KEY;
 
 // Simple in-memory store for free tier tracking (resets on deploy, but that's ok)
 // For production, use Redis or database
-const freeTierTracker = new Map();
+const freeTierTracker = new Map(); // fingerprint -> count
+const ipTracker = new Map(); // ip -> { count, resetTime }
 const COST_PER_IMAGE = 1;
+const FREE_LIMIT = 3;
+const IP_FREE_LIMIT = 5; // Slightly higher for IP-based tracking
+const DAILY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 async function createPrediction(version, input) {
   const res = await fetch('https://api.replicate.com/v1/predictions', {
@@ -35,22 +39,40 @@ async function waitForPrediction(id) {
 }
 
 // Validate credits and return result
-function validateCredits(fingerprint, clientCredits, isAdmin, isInfinite) {
+function validateCredits(fingerprint, clientCredits, isAdmin, isInfinite, clientIp) {
   // Admin or infinite mode bypass - unlimited generation
   if (isAdmin || isInfinite) {
     return { allowed: true, isAdmin: true, isInfinite: true, remainingCredits: 999999 };
   }
   
-  // Check free tier usage server-side
-  const freeUsed = freeTierTracker.get(fingerprint) || 0;
-  const FREE_LIMIT = 3;
+  // Check IP-based rate limiting first (stronger than fingerprint)
+  const now = Date.now();
+  let ipData = ipTracker.get(clientIp);
   
-  // If they have free credits remaining
-  if (freeUsed < FREE_LIMIT) {
+  // Reset IP counter if it's a new day
+  if (ipData && now > ipData.resetTime) {
+    ipData = null;
+  }
+  
+  if (!ipData) {
+    ipData = { count: 0, resetTime: now + DAILY_MS };
+    ipTracker.set(clientIp, ipData);
+  }
+  
+  // Check fingerprint-based free tier
+  const freeUsed = freeTierTracker.get(fingerprint) || 0;
+  
+  // Must pass BOTH checks to get free credits
+  // IP limit is slightly higher (5 vs 3) to allow some flexibility
+  if (freeUsed < FREE_LIMIT && ipData.count < IP_FREE_LIMIT) {
+    // Increment both trackers
+    freeTierTracker.set(fingerprint, freeUsed + 1);
+    ipData.count += 1;
+    
     return { 
       allowed: true, 
       isFreeTier: true, 
-      remainingCredits: FREE_LIMIT - freeUsed - 1,
+      remainingCredits: Math.min(FREE_LIMIT - freeUsed - 1, IP_FREE_LIMIT - ipData.count),
       freeUsed: freeUsed + 1
     };
   }
@@ -64,7 +86,16 @@ function validateCredits(fingerprint, clientCredits, isAdmin, isInfinite) {
     };
   }
   
-  // No credits available
+  // No credits available - provide specific reason
+  if (ipData.count >= IP_FREE_LIMIT) {
+    return { 
+      allowed: false, 
+      error: 'Daily free limit reached from this device', 
+      code: 'NO_CREDITS',
+      remainingCredits: 0
+    };
+  }
+  
   return { 
     allowed: false, 
     error: 'No credits remaining', 
@@ -98,6 +129,12 @@ export default async function handler(req, res) {
   // Check for infinite mode from client (secret code unlocked)
   const isInfinite = infiniteMode === true;
   
+  // Get client IP for rate limiting
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
+                   req.headers['x-real-ip'] || 
+                   req.socket?.remoteAddress || 
+                   'unknown';
+  
   if (isAdmin) {
     console.log('🔑 Admin generation requested');
   }
@@ -105,8 +142,8 @@ export default async function handler(req, res) {
     console.log('♾️ Infinite mode generation');
   }
 
-  // Validate credits
-  const creditCheck = validateCredits(fingerprint, clientCredits, isAdmin, isInfinite);
+  // Validate credits with IP tracking
+  const creditCheck = validateCredits(fingerprint, clientCredits, isAdmin, isInfinite, clientIp);
   
   if (!creditCheck.allowed) {
     return res.status(402).json({ 
