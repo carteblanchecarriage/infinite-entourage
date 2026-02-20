@@ -97,35 +97,49 @@ export default async function handler(req, res) {
     console.log('Removing background with rembg...');
     console.log('Input image URL:', finalImageUrl);
     
-    const rembgInput = { image: finalImageUrl };
-    const rembgPred = await createPrediction(REMBG_VERSION, rembgInput);
-    
-    console.log('rembg prediction created:', rembgPred.id);
-    
-    if (rembgPred.id) {
-      const rembgResult = await waitForPrediction(rembgPred.id);
-      console.log('rembg result status:', rembgResult.status);
-      console.log('rembg result output:', rembgResult.output);
+    try {
+      const rembgInput = { image: finalImageUrl };
+      const rembgPred = await createPrediction(REMBG_VERSION, rembgInput);
       
-      if (rembgResult.status === 'succeeded' && rembgResult.output) {
-        // Handle different output formats
-        let rembgOutput = rembgResult.output;
-        if (Array.isArray(rembgOutput)) {
-          rembgOutput = rembgOutput[0];
-        }
+      if (rembgPred.id) {
+        console.log('rembg prediction created:', rembgPred.id);
+        const rembgResult = await waitForPrediction(rembgPred.id);
         
-        if (rembgOutput && typeof rembgOutput === 'string') {
-          finalImageUrl = rembgOutput;
-          console.log('Transparent version:', finalImageUrl);
+        console.log('rembg result status:', rembgResult.status);
+        console.log('rembg result output type:', typeof rembgResult.output);
+        console.log('rembg result output:', JSON.stringify(rembgResult.output, null, 2));
+        
+        if (rembgResult.status === 'succeeded' && rembgResult.output) {
+          // Handle different output formats
+          let rembgOutput = rembgResult.output;
+          
+          // If it's an array, get first element
+          if (Array.isArray(rembgOutput)) {
+            rembgOutput = rembgOutput[0];
+            console.log('rembg output was array, first element:', rembgOutput);
+          }
+          
+          // If output is an object with an 'output' field (nested structure)
+          if (typeof rembgOutput === 'object' && rembgOutput !== null && rembgOutput.output) {
+            rembgOutput = rembgOutput.output;
+            console.log('rembg output was nested, extracted:', rembgOutput);
+          }
+          
+          // Validate it's a proper URL
+          if (rembgOutput && typeof rembgOutput === 'string' && rembgOutput.startsWith('http')) {
+            finalImageUrl = rembgOutput;
+            console.log('SUCCESS - Transparene version:', finalImageUrl);
+          } else {
+            console.error('rembg output format unexpected or not a URL:', rembgOutput);
+          }
         } else {
-          console.error('rembg output format unexpected:', rembgOutput);
+          console.error('rembg prediction failed or no output:', rembgResult.status, rembgResult.error);
         }
       } else {
-        console.error('rembg failed:', rembgResult.error || 'No output');
-        console.error('rembg full result:', JSON.stringify(rembgResult, null, 2));
+        console.error('Failed to create rembg prediction:', rembgPred);
       }
-    } else {
-      console.error('Failed to create rembg prediction:', rembgPred);
+    } catch (rembgError) {
+      console.error('rembg threw error:', rembgError);
     }
 
     // Deduct credit for generation
