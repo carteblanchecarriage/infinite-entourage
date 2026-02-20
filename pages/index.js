@@ -35,6 +35,8 @@ export default function Home() {
   const [fingerprint, setFingerprint] = useState('');
   const [showCreditPrompt, setShowCreditPrompt] = useState(false);
   const [infiniteMode, setInfiniteMode] = useState(false);
+  const [gallery, setGallery] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const styles = [
     { id: 'realistic', label: 'REALISTIC' },
@@ -63,6 +65,16 @@ export default function Home() {
     const storedInfinite = localStorage.getItem('ie_infinite_mode');
     if (storedInfinite === 'true') {
       setInfiniteMode(true);
+    }
+    
+    // Load gallery from localStorage
+    const storedGallery = localStorage.getItem('ie_gallery');
+    if (storedGallery) {
+      try {
+        setGallery(JSON.parse(storedGallery));
+      } catch (e) {
+        console.error('Failed to load gallery:', e);
+      }
     }
   }, []);
 
@@ -124,6 +136,18 @@ export default function Home() {
       }
       
       setResult(data.url);
+      
+      // Add to gallery
+      const newImage = {
+        id: Date.now(),
+        url: data.url,
+        prompt: prompt,
+        style: style,
+        timestamp: new Date().toISOString()
+      };
+      const updatedGallery = [newImage, ...gallery].slice(0, 20); // Keep last 20
+      setGallery(updatedGallery);
+      localStorage.setItem('ie_gallery', JSON.stringify(updatedGallery));
       
       // Update credits based on response (skip if infinite mode)
       if (!infiniteMode) {
@@ -368,7 +392,102 @@ export default function Home() {
           )}
         </div>
 
+        {/* GALLERY - Previous generations */}
+        {gallery.length > 0 && (
+          <div className="mt-12 border-4 border-black p-4 md:p-6">
+            <h2 className="text-xl md:text-2xl font-black mb-4">YOUR GENERATIONS ({gallery.length})</h2>
+            <p className="text-sm text-gray-600 mb-4">Click a thumbnail to view larger</p>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+              {gallery.map((img) => (
+                <button
+                  key={img.id}
+                  onClick={() => setSelectedImage(img)}
+                  className="relative aspect-square border-2 border-black hover:border-purple-500 overflow-hidden bg-[url('/checkerboard.png')] bg-contain"
+                >
+                  <img
+                    src={img.url}
+                    alt={img.prompt}
+                    className="w-full h-full object-contain"
+                  />
+                  <div className="absolute bottom-0 left-0 right-0 bg-black text-white text-xs p-1 truncate">
+                    {img.style}
+                  </div>
+                </button>
+              ))}
+            </div>          
+          </div>
+        )}
+
       </main>
+
+      {/* IMAGE MODAL */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div 
+            className="bg-white max-w-4xl w-full max-h-[90vh] overflow-auto border-4 border-black"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center border-b-2 border-black p-4">
+              <div className="flex-1 min-w-0 mr-4">
+                <p className="font-bold truncate">{selectedImage.prompt}</p>
+                <p className="text-sm text-gray-600">{selectedImage.style} • {new Date(selectedImage.timestamp).toLocaleString()}</p>
+              </div>
+              <button
+                onClick={() => setSelectedImage(null)}
+                className="text-2xl font-black px-3 py-1 border-2 border-black hover:bg-black hover:text-white"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="p-4 flex justify-center bg-[url('/checkerboard.png')] bg-contain">
+              <img
+                src={selectedImage.url}
+                alt={selectedImage.prompt}
+                className="max-w-full h-auto max-h-[60vh]"
+              />
+            </div>
+            
+            <div className="border-t-2 border-black p-4 flex gap-2">
+              <button
+                onClick={async () => {
+                  try {
+                    const response = await fetch(selectedImage.url);
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `entourage-${selectedImage.id}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  } catch (err) {
+                    window.open(selectedImage.url, '_blank');
+                  }
+                }}
+                className="flex-1 text-center text-lg font-bold py-3 border-2 border-black hover:bg-black hover:text-white"
+              >
+                DOWNLOAD ↓
+              </button>
+              <button
+                onClick={() => {
+                  const updatedGallery = gallery.filter(img => img.id !== selectedImage.id);
+                  setGallery(updatedGallery);
+                  localStorage.setItem('ie_gallery', JSON.stringify(updatedGallery));
+                  setSelectedImage(null);
+                }}
+                className="px-4 py-3 border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-bold"
+              >
+                🗑
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FOOTER */}
       <footer className="border-t-4 border-black p-4 md:p-6 mt-8 md:mt-16">
