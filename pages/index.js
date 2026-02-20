@@ -182,44 +182,30 @@ export default function Home() {
         {/* EXAMPLES */}
         <div className="mt-16 border-t-4 border-black pt-8">
           <h2 className="text-2xl md:text-3xl font-black mb-6">EXAMPLE PROMPTS</h2>
+          <p className="text-sm text-gray-600 mb-4 font-bold">CLICK AN EXAMPLE TO USE IT</p>
           <ul className="space-y-2 text-base md:text-xl font-bold">
             <li 
               className="cursor-pointer hover:bg-black hover:text-white p-2"
-              onClick={() => setPrompt('walking person')}
+              onClick={() => setPrompt('businessman walking with briefcase')}
             >
-              → WALKING PERSON
+              → BUSINESSMAN WALKING WITH BRIEFCASE
             </li>
             <li 
               className="cursor-pointer hover:bg-black hover:text-white p-2"
-              onClick={() => setPrompt('golden retriever sitting')}
+              onClick={() => setPrompt('red road bicycle side view')}
             >
-              → GOLDEN RETRIEVER SITTING
+              → RED ROAD BICYCLE SIDE VIEW
             </li>
             <li 
               className="cursor-pointer hover:bg-black hover:text-white p-2"
-              onClick={() => setPrompt('red car parked')}
+              onClick={() => setPrompt('elderly woman sitting on bench reading newspaper')}
             >
-              → RED CAR PARKED
-            </li>
-            <li 
-              className="cursor-pointer hover:bg-black hover:text-white p-2"
-              onClick={() => setPrompt('oak tree')}
-            >
-              → OAK TREE
-            </li>
-            <li 
-              className="cursor-pointer hover:bg-black hover:text-white p-2"
-              onClick={() => setPrompt('park bench')}
-            >
-              → PARK BENCH
-            </li>
-            <li 
-              className="cursor-pointer hover:bg-black hover:text-white p-2"
-              onClick={() => setPrompt('bicycle leaning against wall')}
-            >
-              → BICYCLE LEANING AGAINST WALL
+              → ELDERLY WOMAN SITTING ON BENCH READING NEWSPAPER
             </li>
           </ul>
+          <p className="text-xs text-gray-500 mt-4">
+            TIP: DESCRIBE THE SUBJECT AND ACTION. AVOID BACKGROUNDS LIKE "ON STREET" OR "AGAINST WALL" — THEY MAKE BACKGROUND REMOVAL HARDER.
+          </p>
         </div>
 
       </main>
