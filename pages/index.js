@@ -480,51 +480,16 @@ export default function Home() {
               <img
                 src={selectedImage.url}
                 alt={selectedImage.prompt}
-                className="max-w-full h-auto max-h-[60vh]"
+                className="max-w-full h-auto max-h-[50vh]"
               />
             </div>
             
-            <div className="border-t-2 border-black p-4 flex gap-2">
-              <button
-                onClick={async () => {
-                  try {
-                    const response = await fetch(selectedImage.url);
-                    const blob = await response.blob();
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `entourage-${selectedImage.id}.png`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                  } catch (err) {
-                    window.open(selectedImage.url, '_blank');
-                  }
-                }}
-                className="flex-1 text-center text-lg font-bold py-3 border-2 border-black hover:bg-black hover:text-white"
-              >
-                DOWNLOAD ↓
-              </button>
-              <button
-                onClick={() => {
-                  const updatedGallery = gallery.filter(img => img.id !== selectedImage.id);
-                  setGallery(updatedGallery);
-                  localStorage.setItem('ie_gallery', JSON.stringify(updatedGallery));
-                  setSelectedImage(null);
-                }}
-                className="px-4 py-3 border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-bold"
-              >
-                🗑
-              </button>
-            </div>
-            
             {/* FEEDBACK SECTION */}
-            <div className="border-t border-gray-300 p-4 bg-gray-50">
+            <div className="border-t border-gray-300 p-3 bg-gray-50">
               {!feedbackGiven[selectedImage?.id] ? (
                 <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-3">How did this turn out?</p>
-                  <div className="flex justify-center gap-4">
+                  <p className="text-sm text-gray-600 mb-2">How did this turn out?</p>
+                  <div className="flex justify-center gap-3">
                     <button
                       onClick={() => {
                         const feedback = {
@@ -538,13 +503,13 @@ export default function Home() {
                         localStorage.setItem('ie_feedback', JSON.stringify([...existing, feedback]));
                         setFeedbackGiven({ ...feedbackGiven, [selectedImage.id]: 'good' });
                       }}
-                      className="px-6 py-2 border-2 border-green-500 text-green-600 hover:bg-green-500 hover:text-white font-bold rounded"
+                      className="px-4 py-2 border-2 border-green-500 text-green-600 hover:bg-green-500 hover:text-white font-bold rounded text-sm"
                     >
                       👍 GOOD
                     </button>
                     <button
                       onClick={() => setFeedbackGiven({ ...feedbackGiven, [selectedImage.id]: 'reporting' })}
-                      className="px-6 py-2 border-2 border-red-400 text-red-500 hover:bg-red-400 hover:text-white font-bold rounded"
+                      className="px-4 py-2 border-2 border-red-400 text-red-500 hover:bg-red-400 hover:text-white font-bold rounded text-sm"
                     >
                       👎 ISSUE
                     </button>
@@ -552,15 +517,15 @@ export default function Home() {
                 </div>
               ) : feedbackGiven[selectedImage.id] === 'reporting' ? (
                 <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-3">What's wrong with this image?</p>
-                  <div className="flex flex-wrap justify-center gap-2">
+                  <p className="text-sm text-gray-600 mb-2">What's wrong with this image?</p>
+                  <div className="flex flex-wrap justify-center gap-1">
                     {[
-                      { label: 'Cut off / cropped', value: 'cropped' },
-                      { label: 'Duplicate objects', value: 'duplicate' },
-                      { label: 'Blurry / unclear', value: 'blurry' },
+                      { label: 'Cut off', value: 'cropped' },
+                      { label: 'Duplicate', value: 'duplicate' },
+                      { label: 'Blurry', value: 'blurry' },
                       { label: 'Wrong subject', value: 'wrong_subject' },
-                      { label: 'Background not removed', value: 'background' },
-                      { label: 'Missing item/prop', value: 'missing_prop' },
+                      { label: 'Background', value: 'background' },
+                      { label: 'Missing prop', value: 'missing_prop' },
                       { label: 'Other', value: 'other' }
                     ].map((option) => (
                       <button
@@ -578,24 +543,53 @@ export default function Home() {
                           localStorage.setItem('ie_feedback', JSON.stringify([...existing, feedback]));
                           setFeedbackGiven({ ...feedbackGiven, [selectedImage.id]: 'reported' });
                         }}
-                        className="px-3 py-2 text-sm border-2 border-gray-400 hover:border-black hover:bg-black hover:text-white rounded"
+                        className="px-2 py-1 text-xs border-2 border-gray-400 hover:border-black hover:bg-black hover:text-white rounded"
                       >
                         {option.label}
                       </button>
                     ))}
                   </div>
-                  <button
-                    onClick={() => setFeedbackGiven({ ...feedbackGiven, [selectedImage.id]: null })}
-                    className="mt-3 text-sm text-gray-500 hover:text-gray-700"
-                  >
-                    Cancel
-                  </button>
                 </div>
               ) : (
-                <div className="text-center text-green-600 font-bold">
-                  ✓ Thanks for the feedback!
+                <div className="text-center text-green-600 font-bold text-sm">
+                  ✓ Thanks!
                 </div>
               )}
+            </div>
+            
+            <div className="border-t-2 border-black p-3 flex gap-2">
+              <button
+                onClick={async () => {
+                  try {
+                    const response = await fetch(selectedImage.url);
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `entourage-${selectedImage.id}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                  } catch (err) {
+                    window.open(selectedImage.url, '_blank');
+                  }
+                }}
+                className="flex-1 text-center text-base font-bold py-2 border-2 border-black hover:bg-black hover:text-white"
+              >
+                DOWNLOAD ↓
+              </button>
+              <button
+                onClick={() => {
+                  const updatedGallery = gallery.filter(img => img.id !== selectedImage.id);
+                  setGallery(updatedGallery);
+                  localStorage.setItem('ie_gallery', JSON.stringify(updatedGallery));
+                  setSelectedImage(null);
+                }}
+                className="px-3 py-2 border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white font-bold text-sm"
+              >
+                🗑
+              </button>
             </div>
           </div>
         </div>
