@@ -1,65 +1,40 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getOrCreateUser } from '../lib/supabase';
+import { useSession } from '@supabase/auth-helpers-react';
 
 export default function Success() {
+  const session = useSession();
   const [credits, setCredits] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (session === undefined) return; // Still loading session
+
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('session_id');
-    
-    if (sessionId) {
-      // Get fingerprint for user identification
-      const fingerprint = localStorage.getItem('ie_fingerprint') || generateFingerprint();
-      
-      // Verify session and add credits
-      fetch(`/api/verify-session?session_id=${sessionId}&fingerprint=${fingerprint}`)
-        .then(res => res.json())
-        .then(async (data) => {
-          if (data.credits && data.userId) {
-            setCredits(data.credits);
-            
-            // Also update localStorage for display purposes
-            const currentCredits = parseInt(localStorage.getItem('ie_credits') || '0', 10);
-            const newTotal = currentCredits + data.credits;
-            localStorage.setItem('ie_credits', newTotal.toString());
-          } else if (data.error) {
-            setError(data.error);
-          }
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error('Failed to verify session:', err);
-          setError('Failed to verify payment. Credits may still be added.');
-          setLoading(false);
-        });
-    } else {
-      setLoading(false);
-    }
-  }, []);
 
-  // Generate fingerprint if needed
-  function generateFingerprint() {
-    if (typeof window === 'undefined') return '';
-    
-    let fingerprint = localStorage.getItem('ie_fingerprint');
-    if (fingerprint) return fingerprint;
-    
-    const components = [
-      navigator.userAgent,
-      screen.width + 'x' + screen.height,
-      navigator.language,
-      new Date().getTimezoneOffset(),
-      Math.random().toString(36).substring(2, 15)
-    ];
-    
-    fingerprint = btoa(components.join('|')).substring(0, 32);
-    localStorage.setItem('ie_fingerprint', fingerprint);
-    return fingerprint;
-  }
+    if (!sessionId) { setLoading(false); return; }
+    if (!session) { setError('Please sign in to claim your credits.'); setLoading(false); return; }
+
+    fetch(`/api/verify-session?session_id=${sessionId}`, {
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.credits) {
+          setCredits(data.credits);
+        } else if (data.error) {
+          setError(data.error);
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to verify session:', err);
+        setError('Failed to verify payment. Credits may still be added.');
+        setLoading(false);
+      });
+  }, [session]);
 
   return (
     <div className="min-h-screen bg-white text-black font-mono">

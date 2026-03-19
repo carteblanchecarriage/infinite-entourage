@@ -7,8 +7,8 @@ const API_TOKEN = process.env.REPLICATE_API_TOKEN;
 const ADMIN_KEY = process.env.ADMIN_GENERATION_KEY;
 
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SERVICE_ROLE
 );
 
 const COST_PER_IMAGE = 1;
@@ -75,12 +75,11 @@ async function waitForPrediction(id) {
 }
 
 // Get or create user in Supabase
-async function getOrCreateUser(fingerprint) {
-  // Try to find existing user
+async function getOrCreateUser(authUserId) {
   let { data: user, error } = await supabase
     .from('users')
     .select('*')
-    .eq('fingerprint', fingerprint)
+    .eq('auth_user_id', authUserId)
     .single();
   
   if (error && error.code !== 'PGRST116') {
@@ -93,8 +92,8 @@ async function getOrCreateUser(fingerprint) {
     const { data: newUser, error: createError } = await supabase
       .from('users')
       .insert([
-        { 
-          fingerprint: fingerprint,
+        {
+          auth_user_id: authUserId,
           credits: 0,
           free_credits_used: 0,
           created_at: new Date().toISOString()
@@ -116,14 +115,12 @@ async function getOrCreateUser(fingerprint) {
 }
 
 // Validate credits using Supabase
-async function validateCredits(fingerprint, isAdmin, isInfinite, clientIp) {
-  // Admin or infinite mode bypass - unlimited generation
+async function validateCredits(authUserId, isAdmin, isInfinite, clientIp) {
   if (isAdmin || isInfinite) {
     return { allowed: true, isAdmin, isInfinite, remainingCredits: 999999, userId: null };
   }
-  
-  // Get or create user
-  const user = await getOrCreateUser(fingerprint);
+
+  const user = await getOrCreateUser(authUserId);
   if (!user) {
     return { allowed: false, error: 'Failed to access user account', code: 'USER_ERROR' };
   }
@@ -243,6 +240,13 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Replicate API token not configured' });
   }
 
+  // Authenticate user
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !authUser) return res.status(401).json({ error: 'Unauthorized' });
+
   // Parse and validate input
   let data;
   try {
@@ -250,46 +254,35 @@ export default async function handler(req, res) {
   } catch (e) {
     return res.status(400).json({ error: 'Invalid JSON' });
   }
-  
+
   const rawPrompt = data.prompt;
   const rawStyle = data.style;
-  const rawFingerprint = data.fingerprint;
   const rawInfiniteMode = data.infiniteMode;
   const rawAdminKey = query.adminKey;
-  
-  // Sanitize inputs
+
   const prompt = sanitizeString(rawPrompt, 500);
   const style = sanitizeString(rawStyle, 50);
-  const fingerprint = sanitizeString(rawFingerprint, 32);
-  
-  // Validate inputs
+
   if (!prompt || prompt.length < 3) {
     return res.status(400).json({ error: 'Prompt too short (minimum 3 characters)' });
   }
-  
+
   if (!isValidStyle(style)) {
     return res.status(400).json({ error: 'Invalid style' });
   }
-  
-  if (!isValidFingerprint(fingerprint)) {
-    return res.status(400).json({ error: 'Invalid fingerprint' });
-  }
-  
-  // Validate admin key
+
   const isAdmin = isValidAdminKey(rawAdminKey) && rawAdminKey === ADMIN_KEY;
   const isInfinite = rawInfiniteMode === true;
-  
-  // Get client IP for rate limiting
-  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
-                   req.headers['x-real-ip'] || 
-                   req.socket?.remoteAddress || 
+
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+                   req.headers['x-real-ip'] ||
+                   req.socket?.remoteAddress ||
                    'unknown';
-  
+
   if (isAdmin) console.log('🔑 Admin generation requested');
   if (isInfinite) console.log('♾️ Infinite mode generation');
 
-  // Validate credits using Supabase
-  const creditCheck = await validateCredits(fingerprint, isAdmin, isInfinite, clientIp);
+  const creditCheck = await validateCredits(authUser.id, isAdmin, isInfinite, clientIp);
   
   if (!creditCheck.allowed) {
     return res.status(402).json({ 

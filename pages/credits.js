@@ -1,51 +1,43 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSession } from '@supabase/auth-helpers-react';
 
 // Map package amounts to Stripe price IDs from env
 const PRICE_ID_MAP = {
-  40: process.env.NEXT_PUBLIC_STRIPE_PRICE_40,
-  100: process.env.NEXT_PUBLIC_STRIPE_PRICE_100,
-  250: process.env.NEXT_PUBLIC_STRIPE_PRICE_250,
+  20: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER,
+  75: process.env.NEXT_PUBLIC_STRIPE_PRICE_STANDARD,
+  150: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO,
 };
 
 const CREDIT_PACKAGES = [
-  { id: 40, amount: 40, price: '$5.00', pricePerCredit: '$0.125', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_40' },
-  { id: 100, amount: 100, price: '$10.00', pricePerCredit: '$0.10', savings: 'SAVE 20%', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_100' },
-  { id: 250, amount: 250, price: '$20.00', pricePerCredit: '$0.08', savings: 'BEST VALUE • SAVE 36%', priceIdEnv: 'NEXT_PUBLIC_STRIPE_PRICE_250' },
+  { id: 20, amount: 20, price: '$5.00', pricePerCredit: '$0.25' },
+  { id: 75, amount: 75, price: '$15.00', pricePerCredit: '$0.20', savings: 'SAVE 20%' },
+  { id: 150, amount: 150, price: '$25.00', pricePerCredit: '$0.17', savings: 'BEST VALUE • SAVE 33%' },
 ];
 
 export default function Credits() {
+  const session = useSession();
   const [credits, setCredits] = useState(0);
   const [freeUsed, setFreeUsed] = useState(0);
   const [loading, setLoading] = useState(null);
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    // Load credits from localStorage
-    const stored = localStorage.getItem('ie_credits');
-    if (stored) {
-      setCredits(parseInt(stored, 10));
-    }
-    
-    const storedFree = localStorage.getItem('ie_free_used');
-    if (storedFree) {
-      setFreeUsed(parseInt(storedFree, 10));
-    }
-    
-    // Check for success/canceled params
     const params = new URLSearchParams(window.location.search);
-    if (params.get('success')) {
-      const purchased = params.get('credits');
-      if (purchased) {
-        const newCredits = credits + parseInt(purchased, 10);
-        setCredits(newCredits);
-        localStorage.setItem('ie_credits', newCredits.toString());
-        setMessage(`🎉 Added ${purchased} credits!`);
-      }
-    } else if (params.get('canceled')) {
-      setMessage('Purchase canceled. Your credits are unchanged.');
+    if (params.get('canceled')) setMessage('Purchase canceled. Your credits are unchanged.');
+
+    if (session) {
+      fetch('/api/get-credits', {
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+      })
+        .then(r => r.json())
+        .then(data => {
+          setCredits(data.credits || 0);
+          setFreeUsed(data.freeUsed || 0);
+        })
+        .catch(() => {});
     }
-  }, []);
+  }, [session]);
 
   const handlePurchase = async (creditPackage) => {
     // Get price ID from environment mapping
@@ -62,11 +54,10 @@ export default function Credits() {
     try {
       const res = await fetch('/api/create-checkout-session', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
         body: JSON.stringify({
           priceId: priceId,
           credits: creditPackage.amount,
-          userId: 'anonymous',
         }),
       });
 

@@ -2,142 +2,96 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SERVICE_ROLE
 );
 
 export default async function handler(req, res) {
-  const { session_id, fingerprint } = req.query;
-  
-  if (!session_id) {
-    return res.status(400).json({ error: 'No session ID provided' });
-  }
-  
-  if (!fingerprint) {
-    return res.status(400).json({ error: 'No fingerprint provided' });
-  }
+  const { session_id } = req.query;
+  if (!session_id) return res.status(400).json({ error: 'No session ID provided' });
+
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !authUser) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
-    // Retrieve the session from Stripe
     const session = await stripe.checkout.sessions.retrieve(session_id);
-    
+
     if (session.payment_status !== 'paid') {
-      return res.status(400).json({ 
-        error: 'Payment not completed',
-        status: session.payment_status 
-      });
+      return res.status(400).json({ error: 'Payment not completed', status: session.payment_status });
     }
-    
-    // Get credits amount from metadata or line items
+
+    // Get credits from metadata or price ID lookup
     let credits = parseInt(session.metadata?.credits || '0', 10);
-    
-    // If no metadata, calculate from line items
-    if (!credits && session.line_items) {
+    if (!credits) {
       const lineItems = await stripe.checkout.sessions.listLineItems(session_id);
-      // Map price IDs to credit amounts
       const priceIdToCredits = {
-        [process.env.NEXT_PUBLIC_STRIPE_PRICE_40]: 40,
-        [process.env.NEXT_PUBLIC_STRIPE_PRICE_100]: 100,
-        [process.env.NEXT_PUBLIC_STRIPE_PRICE_250]: 250,
+        [process.env.STRIPE_PRICE_STARTER]: 20,
+        [process.env.STRIPE_PRICE_STANDARD]: 75,
+        [process.env.STRIPE_PRICE_PRO]: 150,
       };
-      
       for (const item of lineItems.data) {
-        const priceId = item.price?.id;
-        if (priceIdToCredits[priceId]) {
-          credits += priceIdToCredits[priceId] * item.quantity;
-        }
+        credits += (priceIdToCredits[item.price?.id] || 0) * item.quantity;
       }
     }
-    
-    if (credits <= 0) {
-      return res.status(400).json({ error: 'No credits found in purchase' });
-    }
-    
-    // Check if this session was already processed
-    const { data: existingPurchase } = await supabase
+
+    if (credits <= 0) return res.status(400).json({ error: 'No credits found in purchase' });
+
+    // Check for duplicate processing
+    const { data: existing } = await supabase
       .from('purchases')
-      .select('*')
+      .select('id, amount')
       .eq('stripe_session_id', session_id)
       .single();
-    
-    if (existingPurchase) {
-      // Already processed, just return success
-      return res.status(200).json({ 
-        success: true, 
-        credits: existingPurchase.amount,
-        alreadyProcessed: true 
-      });
+
+    if (existing) {
+      return res.status(200).json({ success: true, credits: existing.amount, alreadyProcessed: true });
     }
-    
-    // Find or create user
+
+    // Find or create user row
     let { data: user, error: userError } = await supabase
       .from('users')
       .select('*')
-      .eq('fingerprint', fingerprint)
+      .eq('auth_user_id', authUser.id)
       .single();
-    
+
     if (userError && userError.code !== 'PGRST116') {
-      console.error('Error fetching user:', userError);
       return res.status(500).json({ error: 'Failed to access user account' });
     }
-    
-    // Create user if not exists
+
     if (!user) {
       const { data: newUser, error: createError } = await supabase
         .from('users')
-        .insert([{ 
-          fingerprint: fingerprint,
-          credits: 0,
-          free_credits_used: 0
-        }])
+        .insert([{ auth_user_id: authUser.id, credits: 0, free_credits_used: 0 }])
         .select()
         .single();
-      
-      if (createError) {
-        console.error('Error creating user:', createError);
-        return res.status(500).json({ error: 'Failed to create user account' });
-      }
+      if (createError) return res.status(500).json({ error: 'Failed to create user account' });
       user = newUser;
     }
-    
-    // Add credits to user
-    const newCredits = (user.credits || 0) + credits;
+
+    // Add credits
     const { error: updateError } = await supabase
       .from('users')
-      .update({ credits: newCredits })
+      .update({ credits: (user.credits || 0) + credits })
       .eq('id', user.id);
-    
-    if (updateError) {
-      console.error('Error adding credits:', updateError);
-      return res.status(500).json({ error: 'Failed to add credits' });
-    }
-    
-    // Record the purchase
-    const { error: purchaseError } = await supabase
-      .from('purchases')
-      .insert([{
-        user_id: user.id,
-        stripe_session_id: session_id,
-        stripe_payment_intent_id: session.payment_intent,
-        amount: credits,
-        price_paid: session.amount_total,
-        status: 'completed',
-        completed_at: new Date().toISOString()
-      }]);
-    
-    if (purchaseError) {
-      console.error('Error recording purchase:', purchaseError);
-      // Don't fail - credits were already added
-    }
-    
-    res.status(200).json({ 
-      success: true, 
-      credits: credits,
-      userId: user.id 
-    });
-    
+
+    if (updateError) return res.status(500).json({ error: 'Failed to add credits' });
+
+    // Record purchase
+    await supabase.from('purchases').insert([{
+      user_id: user.id,
+      stripe_session_id: session_id,
+      stripe_payment_intent_id: session.payment_intent,
+      amount: credits,
+      price_paid: session.amount_total,
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+    }]);
+
+    res.status(200).json({ success: true, credits, userId: user.id });
   } catch (error) {
     console.error('Error verifying session:', error);
     res.status(500).json({ error: error.message });
