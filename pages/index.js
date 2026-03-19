@@ -179,7 +179,7 @@ export default function Home() {
             <Link href="/credits" className="text-sm md:text-base font-bold border-2 border-black px-2 md:px-3 py-1 md:py-2 hover:bg-black hover:text-white transition">
               BUY
             </Link>
-            <Link href="/account" className="text-sm font-bold border-2 border-black px-2 md:px-3 py-1 md:py-2 hover:bg-black hover:text-white transition">
+            <Link href="/account" className="hidden sm:block text-sm font-bold border-2 border-black px-2 md:px-3 py-1 md:py-2 hover:bg-black hover:text-white transition">
               ACCOUNT
             </Link>
           </>
@@ -355,7 +355,7 @@ export default function Home() {
         )}
 
         {/* RESULT */}
-        <div className="mt-8 md:mt-12 min-h-[500px]">
+        <div className="mt-8 md:mt-12 md:min-h-[500px]">
           {processing && (
             <div className="flex justify-center h-32 items-center">
               <div className="text-xl md:text-2xl font-bold animate-pulse">LOADING...</div>

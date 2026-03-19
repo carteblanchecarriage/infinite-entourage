@@ -112,13 +112,13 @@ export default function Credits() {
               disabled={loading === pkg.id}
               className="border-4 border-black p-6 text-left hover:bg-black hover:text-white transition disabled:opacity-50"
             >
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1">
                 <div>
                   <div className="text-2xl font-black">{pkg.amount} CREDITS</div>
                   <div className="text-lg">{pkg.price} <span className="text-sm text-gray-500">({pkg.pricePerCredit}/credit)</span></div>
                 </div>
                 {pkg.savings && (
-                  <div className="text-green-600 font-bold text-right">
+                  <div className="text-green-600 font-bold text-sm sm:text-base sm:text-right">
                     {pkg.savings}
                   </div>
                 )}
