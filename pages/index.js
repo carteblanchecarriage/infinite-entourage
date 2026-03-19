@@ -23,8 +23,7 @@ export default function Home() {
 
   const styles = [
     { id: 'realistic', label: 'REALISTIC' },
-    { id: 'illustration', label: 'ILLUSTRATION' },
-    { id: 'silhouette', label: 'SILHOUETTE' },
+    { id: 'illustration', label: 'ILLUSTRATION', disabled: true },
   ];
 
   // Load gallery, feedback, and anon usage from localStorage on mount
@@ -316,10 +315,11 @@ export default function Home() {
             {styles.map((s) => (
               <button
                 key={s.id}
-                onClick={() => setStyle(s.id)}
-                className={`text-lg md:text-xl font-bold px-4 md:px-6 py-2 md:py-3 border-4 border-black transition ${style === s.id ? 'bg-black text-white' : 'hover:bg-black hover:text-white'}`}
+                onClick={() => !s.disabled && setStyle(s.id)}
+                disabled={s.disabled}
+                className={`text-lg md:text-xl font-bold px-4 md:px-6 py-2 md:py-3 border-4 transition ${s.disabled ? 'border-gray-300 text-gray-400 cursor-not-allowed' : style === s.id ? 'border-black bg-black text-white' : 'border-black hover:bg-black hover:text-white'}`}
               >
-                {s.label}
+                {s.label}{s.disabled && <span className="block text-xs">SOON</span>}
               </button>
             ))}
           </div>
