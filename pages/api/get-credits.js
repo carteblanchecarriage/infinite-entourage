@@ -24,16 +24,10 @@ export default async function handler(req, res) {
     }
 
     if (!user) {
-      return res.status(200).json({ credits: 0, freeUsed: 0, freeRemaining: 3, total: 3 });
+      return res.status(200).json({ credits: 0 });
     }
 
-    const freeRemaining = Math.max(0, 3 - (user.free_credits_used || 0));
-    res.status(200).json({
-      credits: user.credits || 0,
-      freeUsed: user.free_credits_used || 0,
-      freeRemaining,
-      total: (user.credits || 0) + freeRemaining,
-    });
+    res.status(200).json({ credits: user.credits || 0 });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

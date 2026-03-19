@@ -8,7 +8,6 @@ export default function Account() {
   const supabase = useSupabaseClient();
   const router = useRouter();
   const [credits, setCredits] = useState(null);
-  const [freeRemaining, setFreeRemaining] = useState(null);
 
   useEffect(() => {
     if (session === undefined) return;
@@ -20,7 +19,6 @@ export default function Account() {
       .then(r => r.json())
       .then(data => {
         setCredits(data.credits || 0);
-        setFreeRemaining(data.freeRemaining || 0);
       })
       .catch(() => {});
   }, [session]);
@@ -51,9 +49,6 @@ export default function Account() {
         <div className="border-4 border-black p-6 mb-6">
           <div className="text-sm text-gray-500 font-bold mb-1">CREDITS</div>
           <div className="text-5xl font-black">{credits ?? '...'}</div>
-          {freeRemaining > 0 && (
-            <div className="text-green-600 font-bold mt-2">+ {freeRemaining} free remaining</div>
-          )}
           <Link href="/credits" className="inline-block mt-4 text-base font-bold border-2 border-black px-4 py-2 hover:bg-black hover:text-white transition">
             BUY MORE CREDITS
           </Link>

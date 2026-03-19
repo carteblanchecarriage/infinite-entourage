@@ -12,12 +12,11 @@ const supabase = createClient(
 );
 
 const COST_PER_IMAGE = 1;
-const FREE_LIMIT = 3;
+const FREE_LIMIT = 3;  // anonymous free tier
 const DAILY_MS = 24 * 60 * 60 * 1000;
 
-// IP rate limiting
+// IP rate limiting for anonymous free tier
 const ipTracker = new Map();
-const IP_FREE_LIMIT = 5;
 
 // Validation helper functions
 function sanitizeString(str, maxLength = 500) {
@@ -115,7 +114,7 @@ async function getOrCreateUser(authUserId) {
 }
 
 // Validate credits using Supabase
-async function validateCredits(authUserId, isAdmin, isInfinite, clientIp) {
+async function validateCredits(authUserId, isAdmin, isInfinite) {
   if (isAdmin || isInfinite) {
     return { allowed: true, isAdmin, isInfinite, remainingCredits: 999999, userId: null };
   }
@@ -124,101 +123,33 @@ async function validateCredits(authUserId, isAdmin, isInfinite, clientIp) {
   if (!user) {
     return { allowed: false, error: 'Failed to access user account', code: 'USER_ERROR' };
   }
-  
-  // Check IP-based rate limiting
-  const now = Date.now();
-  let ipData = ipTracker.get(clientIp);
-  
-  if (ipData && now > ipData.resetTime) {
-    ipData = null;
-  }
-  
-  if (!ipData) {
-    ipData = { count: 0, resetTime: now + DAILY_MS };
-    ipTracker.set(clientIp, ipData);
-  }
-  
-  const freeUsed = user.free_credits_used || 0;
+
   const paidCredits = user.credits || 0;
-  const freeRemaining = Math.max(0, FREE_LIMIT - freeUsed);
-  const totalCredits = paidCredits + freeRemaining;
-  
-  // Check if user has any credits
-  if (totalCredits < COST_PER_IMAGE) {
-    return { 
-      allowed: false, 
-      error: 'No credits remaining', 
+
+  if (paidCredits < COST_PER_IMAGE) {
+    return {
+      allowed: false,
+      error: 'No credits remaining',
       code: 'NO_CREDITS',
       remainingCredits: 0,
-      userId: user.id
+      userId: user.id,
     };
   }
-  
-  // Check IP limit for free tier
-  const usingFreeCredit = freeRemaining > 0;
-  if (usingFreeCredit && ipData.count >= IP_FREE_LIMIT) {
-    // If they have paid credits, use those instead
-    if (paidCredits >= COST_PER_IMAGE) {
-      // Deduct paid credit
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ credits: paidCredits - COST_PER_IMAGE })
-        .eq('id', user.id);
-      
-      if (updateError) {
-        console.error('Error deducting credit:', updateError);
-        return { allowed: false, error: 'Failed to process credit', code: 'SYSTEM_ERROR' };
-      }
-      
-      return {
-        allowed: true,
-        isFreeTier: false,
-        remainingCredits: paidCredits - COST_PER_IMAGE + freeRemaining,
-        freeUsed: freeUsed,
-        userId: user.id
-      };
-    }
-    
-    return { 
-      allowed: false, 
-      error: 'Daily free limit reached from this device', 
-      code: 'NO_CREDITS',
-      remainingCredits: 0,
-      userId: user.id
-    };
-  }
-  
-  // Deduct credit (free first, then paid)
-  let newFreeUsed = freeUsed;
-  let newPaidCredits = paidCredits;
-  
-  if (freeRemaining > 0) {
-    newFreeUsed += 1;
-    ipData.count += 1;
-  } else {
-    newPaidCredits -= COST_PER_IMAGE;
-  }
-  
-  // Update user in Supabase
+
   const { error: updateError } = await supabase
     .from('users')
-    .update({ 
-      credits: newPaidCredits,
-      free_credits_used: newFreeUsed
-    })
+    .update({ credits: paidCredits - COST_PER_IMAGE })
     .eq('id', user.id);
-  
+
   if (updateError) {
-    console.error('Error updating credits:', updateError);
+    console.error('Error deducting credit:', updateError);
     return { allowed: false, error: 'Failed to process credit', code: 'SYSTEM_ERROR' };
   }
-  
+
   return {
     allowed: true,
-    isFreeTier: newFreeUsed > freeUsed,
-    remainingCredits: newPaidCredits + Math.max(0, FREE_LIMIT - newFreeUsed),
-    freeUsed: newFreeUsed,
-    userId: user.id
+    remainingCredits: paidCredits - COST_PER_IMAGE,
+    userId: user.id,
   };
 }
 
@@ -240,12 +171,15 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Replicate API token not configured' });
   }
 
-  // Authenticate user
+  // Authenticate user (optional — anonymous users get free tier)
   const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  let authUser = null;
 
-  const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
-  if (authError || !authUser) return res.status(401).json({ error: 'Unauthorized' });
+  if (token) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) return res.status(401).json({ error: 'Unauthorized' });
+    authUser = user;
+  }
 
   // Parse and validate input
   let data;
@@ -282,7 +216,28 @@ export default async function handler(req, res) {
   if (isAdmin) console.log('🔑 Admin generation requested');
   if (isInfinite) console.log('♾️ Infinite mode generation');
 
-  const creditCheck = await validateCredits(authUser.id, isAdmin, isInfinite, clientIp);
+  // Anonymous free tier — IP-based, no account required
+  let creditCheck;
+  if (!authUser) {
+    const now = Date.now();
+    let ipData = ipTracker.get(clientIp);
+    if (ipData && now > ipData.resetTime) ipData = null;
+    if (!ipData) {
+      ipData = { count: 0, resetTime: now + DAILY_MS };
+      ipTracker.set(clientIp, ipData);
+    }
+    if (ipData.count >= FREE_LIMIT) {
+      return res.status(402).json({
+        error: 'Sign up for more generations',
+        code: 'NO_CREDITS',
+        requiresSignup: true,
+      });
+    }
+    ipData.count += 1;
+    creditCheck = { allowed: true, isAnon: true, remainingCredits: FREE_LIMIT - ipData.count };
+  } else {
+    creditCheck = await validateCredits(authUser.id, isAdmin, isInfinite);
+  }
   
   if (!creditCheck.allowed) {
     return res.status(402).json({ 
@@ -372,13 +327,14 @@ export default async function handler(req, res) {
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     
-    res.status(200).json({ 
-      url: finalUrlWithCache, 
+    res.status(200).json({
+      url: finalUrlWithCache,
       subjectType: promptResult.subjectType,
       prompt: fullPrompt,
       isAdmin: creditCheck.isAdmin || false,
       isInfinite: creditCheck.isInfinite || false,
       isFreeTier: creditCheck.isFreeTier || false,
+      isAnon: creditCheck.isAnon || false,
       remainingCredits: creditCheck.remainingCredits,
       freeTierUsed: creditCheck.freeUsed || 0
     });

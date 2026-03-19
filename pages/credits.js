@@ -18,7 +18,6 @@ const CREDIT_PACKAGES = [
 export default function Credits() {
   const session = useSession();
   const [credits, setCredits] = useState(0);
-  const [freeUsed, setFreeUsed] = useState(0);
   const [loading, setLoading] = useState(null);
   const [message, setMessage] = useState('');
 
@@ -33,7 +32,6 @@ export default function Credits() {
         .then(r => r.json())
         .then(data => {
           setCredits(data.credits || 0);
-          setFreeUsed(data.freeUsed || 0);
         })
         .catch(() => {});
     }
@@ -76,9 +74,6 @@ export default function Credits() {
     setLoading(null);
   };
 
-  const freeRemaining = Math.max(0, 3 - freeUsed);
-  const totalCredits = credits + freeRemaining;
-
   return (
     <div className="min-h-screen bg-white text-black font-mono">
       <header className="border-b-4 border-black p-4 md:p-6">
@@ -98,18 +93,8 @@ export default function Credits() {
         <h1 className="text-4xl font-black mb-6">CREDITS</h1>
 
         <div className="border-4 border-black p-6 mb-8">
-          <div className="text-6xl font-black mb-2">{totalCredits}</div>
+          <div className="text-6xl font-black mb-2">{credits}</div>
           <div className="text-xl font-bold">CREDITS REMAINING</div>
-          {freeRemaining > 0 && (
-            <div className="mt-2 text-green-600 font-bold">
-              Includes {freeRemaining} free credits
-            </div>
-          )}
-          {credits > 0 && (
-            <div className="mt-2 text-gray-600">
-              {credits} purchased credits
-            </div>
-          )}
         </div>
 
         {message && (
@@ -154,7 +139,6 @@ export default function Credits() {
         <div className="border-4 border-gray-300 p-4 text-sm text-gray-600">
           <p className="font-bold mb-2">HOW IT WORKS:</p>
           <ul className="list-disc list-inside space-y-1">
-            <li>New users get <strong>3 free credits</strong> to try it out</li>
             <li>Each generation creates 1 transparent PNG</li>
             <li>Credits never expire</li>
             <li>Secure payment via Stripe</li>

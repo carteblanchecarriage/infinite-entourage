@@ -29,9 +29,9 @@ export default async function handler(req, res) {
     if (!credits) {
       const lineItems = await stripe.checkout.sessions.listLineItems(session_id);
       const priceIdToCredits = {
-        [process.env.STRIPE_PRICE_STARTER]: 20,
-        [process.env.STRIPE_PRICE_STANDARD]: 75,
-        [process.env.STRIPE_PRICE_PRO]: 150,
+        [process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER]: 20,
+        [process.env.NEXT_PUBLIC_STRIPE_PRICE_STANDARD]: 75,
+        [process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO]: 150,
       };
       for (const item of lineItems.data) {
         credits += (priceIdToCredits[item.price?.id] || 0) * item.quantity;

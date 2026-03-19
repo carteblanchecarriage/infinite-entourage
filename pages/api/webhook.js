@@ -8,9 +8,9 @@ const supabase = createClient(
 );
 
 const PRICE_CREDITS = {
-  [process.env.STRIPE_PRICE_STARTER]: 20,
-  [process.env.STRIPE_PRICE_STANDARD]: 75,
-  [process.env.STRIPE_PRICE_PRO]: 150,
+  [process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER]: 20,
+  [process.env.NEXT_PUBLIC_STRIPE_PRICE_STANDARD]: 75,
+  [process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO]: 150,
 };
 
 async function getRawBody(req) {

@@ -12,7 +12,9 @@ export default function Home() {
   const [error, setError] = useState('');
   const [credits, setCredits] = useState(0);
   const [freeUsed, setFreeUsed] = useState(0);
+  const [anonUsed, setAnonUsed] = useState(0);
   const [showCreditPrompt, setShowCreditPrompt] = useState(false);
+  const [showSignupPrompt, setShowSignupPrompt] = useState(false);
   const [infiniteMode, setInfiniteMode] = useState(false);
   const [gallery, setGallery] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -24,7 +26,7 @@ export default function Home() {
     { id: 'silhouette', label: 'SILHOUETTE' },
   ];
 
-  // Load gallery and feedback from localStorage on mount
+  // Load gallery, feedback, and anon usage from localStorage on mount
   useEffect(() => {
     const storedGallery = localStorage.getItem('ie_gallery');
     if (storedGallery) {
@@ -43,6 +45,8 @@ export default function Home() {
     }
     const storedInfinite = localStorage.getItem('ie_infinite_mode');
     if (storedInfinite === 'true') setInfiniteMode(true);
+    const storedAnonUsed = localStorage.getItem('ie_anon_used');
+    if (storedAnonUsed) setAnonUsed(parseInt(storedAnonUsed, 10) || 0);
   }, []);
 
   // Fetch credits from server when session is available
@@ -58,7 +62,6 @@ export default function Home() {
       if (res.ok) {
         const data = await res.json();
         setCredits(data.credits || 0);
-        setFreeUsed(data.freeUsed || 0);
       }
     } catch (err) {
       console.error('Failed to fetch credits:', err);
@@ -82,26 +85,29 @@ export default function Home() {
       return;
     }
 
-    if (!infiniteMode) {
-      const totalAvailable = credits + (3 - freeUsed);
-      if (totalAvailable < 1) {
-        setShowCreditPrompt(true);
-        return;
-      }
+    if (!infiniteMode && session && credits < 1) {
+      setShowCreditPrompt(true);
+      return;
+    }
+
+    if (!session && !infiniteMode && anonUsed >= 3) {
+      setShowSignupPrompt(true);
+      return;
     }
 
     setResult('');
     setProcessing(true);
     setError('');
     setShowCreditPrompt(false);
+    setShowSignupPrompt(false);
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (session) headers['Authorization'] = `Bearer ${session.access_token}`;
 
     try {
       const res = await fetch('/api/getEntourage', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
+        headers,
         body: JSON.stringify({ prompt, style, infiniteMode }),
       });
 
@@ -109,7 +115,11 @@ export default function Home() {
 
       if (!res.ok) {
         if (data.code === 'NO_CREDITS') {
-          setShowCreditPrompt(true);
+          if (data.requiresSignup) {
+            setShowSignupPrompt(true);
+          } else {
+            setShowCreditPrompt(true);
+          }
           throw new Error('No credits remaining');
         }
         throw new Error(data.error || 'Something went wrong. Try again?');
@@ -131,8 +141,10 @@ export default function Home() {
 
       // Update local credit counts
       if (!infiniteMode) {
-        if (data.isFreeTier) {
-          setFreeUsed(data.freeTierUsed || freeUsed + 1);
+        if (data.isAnon) {
+          const newAnonUsed = anonUsed + 1;
+          setAnonUsed(newAnonUsed);
+          localStorage.setItem('ie_anon_used', String(newAnonUsed));
         } else if (!data.isAdmin) {
           setCredits(data.remainingCredits ?? credits - 1);
         }
@@ -143,38 +155,8 @@ export default function Home() {
     setProcessing(false);
   }
 
-  const freeRemaining = Math.max(0, 3 - freeUsed);
-  const totalCredits = credits + freeRemaining;
-
-  // Not logged in — show gate
-  if (!session) {
-    return (
-      <div className="min-h-screen bg-white text-black font-mono">
-        <header className="border-b-4 border-black p-4 md:p-6">
-          <div className="max-w-4xl mx-auto flex justify-between items-center">
-            <span className="text-2xl md:text-4xl font-black tracking-tighter">INFINITE ENTOURAGE</span>
-            <Link href="/login" className="text-base md:text-xl font-bold border-2 border-black px-3 md:px-4 py-2 hover:bg-black hover:text-white transition">
-              SIGN IN
-            </Link>
-          </div>
-        </header>
-        <main className="max-w-4xl mx-auto p-6 md:p-12 text-center">
-          <h1 className="text-4xl md:text-6xl font-black mb-6 leading-none">
-            GENERATE<br />TRANSPARENT<br />ENTOURAGE
-          </h1>
-          <p className="text-lg md:text-xl font-bold mb-2">AI-GENERATED ASSETS FOR ARCHITECTURAL RENDERINGS</p>
-          <p className="text-gray-600 mb-10">PEOPLE • ANIMALS • VEHICLES • PLANTS • OBJECTS</p>
-          <Link
-            href="/login"
-            className="inline-block text-xl md:text-2xl font-black py-4 px-10 border-4 border-black bg-black text-white hover:bg-white hover:text-black transition"
-          >
-            GET STARTED FREE →
-          </Link>
-          <p className="text-gray-500 mt-4 text-sm">3 free generations — no credit card required</p>
-        </main>
-      </div>
-    );
-  }
+  const freeRemaining = Math.max(0, 3 - anonUsed);
+  const totalCredits = session ? credits : freeRemaining;
 
   return (
     <div className="min-h-screen bg-white text-black font-mono">
@@ -185,26 +167,53 @@ export default function Home() {
             INFINITE ENTOURAGE
           </Link>
           <div className="flex items-center gap-4">
-            <div className={`flex items-center gap-2 border-2 border-black px-3 py-2 ${infiniteMode ? 'bg-purple-100 border-purple-500' : ''}`}>
-              <span className="text-base md:text-lg font-bold">{infiniteMode ? '∞' : totalCredits}</span>
-              <span className="text-sm text-gray-600">{infiniteMode ? 'INFINITE' : 'CREDITS'}</span>
-              {!infiniteMode && freeRemaining > 0 && (
-                <span className="text-xs bg-green-100 text-green-800 px-2 py-1">{freeRemaining} FREE</span>
-              )}
-            </div>
-            <Link href="/credits" className="text-base md:text-xl font-bold border-2 border-black px-3 md:px-4 py-2 hover:bg-black hover:text-white transition">
-              BUY MORE
-            </Link>
-            <Link href="/account" className="text-sm font-bold border-2 border-black px-3 py-2 hover:bg-black hover:text-white transition">
-              ACCOUNT
-            </Link>
+            {session ? (
+              <>
+                <div className={`flex items-center gap-2 border-2 border-black px-3 py-2 ${infiniteMode ? 'bg-purple-100 border-purple-500' : ''}`}>
+                  <span className="text-base md:text-lg font-bold">{infiniteMode ? '∞' : credits}</span>
+                  <span className="text-sm text-gray-600">{infiniteMode ? 'INFINITE' : 'CREDITS'}</span>
+                </div>
+                <Link href="/credits" className="text-base md:text-xl font-bold border-2 border-black px-3 md:px-4 py-2 hover:bg-black hover:text-white transition">
+                  BUY MORE
+                </Link>
+                <Link href="/account" className="text-sm font-bold border-2 border-black px-3 py-2 hover:bg-black hover:text-white transition">
+                  ACCOUNT
+                </Link>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 border-2 border-black px-3 py-2">
+                  <span className="text-base md:text-lg font-bold">{freeRemaining}</span>
+                  <span className="text-sm text-gray-600">FREE LEFT</span>
+                </div>
+                <Link href="/login" className="text-base md:text-xl font-bold border-2 border-black px-3 md:px-4 py-2 hover:bg-black hover:text-white transition">
+                  SIGN IN
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto p-4 md:p-6">
 
-        {/* CREDIT PROMPT */}
+        {/* SIGNUP PROMPT (anonymous free exhausted) */}
+        {showSignupPrompt && (
+          <div className="mb-8 border-4 border-black bg-black text-white p-6">
+            <h2 className="text-2xl font-black mb-2">YOU'VE USED YOUR 3 FREE GENERATIONS</h2>
+            <p className="text-lg mb-6">Create a free account to get 3 more — no credit card required.</p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link href="/login" className="text-center text-xl font-black py-4 px-8 border-4 border-white bg-white text-black hover:bg-black hover:text-white hover:border-white transition">
+                CREATE FREE ACCOUNT →
+              </Link>
+              <button onClick={() => setShowSignupPrompt(false)} className="text-center text-xl font-bold py-4 px-8 border-4 border-white hover:bg-white hover:text-black transition">
+                MAYBE LATER
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* CREDIT PROMPT (logged in, out of credits) */}
         {showCreditPrompt && (
           <div className="mb-8 border-4 border-yellow-500 bg-yellow-50 p-6">
             <h2 className="text-2xl font-black mb-4">YOU'VE USED ALL YOUR CREDITS!</h2>
@@ -287,7 +296,7 @@ export default function Home() {
         </div>
 
         {/* GENERATE */}
-        {!infiniteMode && totalCredits < 1 ? (
+        {!infiniteMode && totalCredits < 1 && session ? (
           <Link href="/credits" className="block w-full text-xl md:text-3xl font-black py-4 md:py-6 border-4 border-black bg-black text-white hover:bg-white hover:text-black transition text-center">
             NO CREDITS - BUY MORE
           </Link>
