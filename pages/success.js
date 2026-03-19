@@ -16,15 +16,16 @@ export default function Success() {
     const sessionId = params.get('session_id');
 
     if (!sessionId) { setLoading(false); return; }
-    if (!session) { setError('Please sign in to claim your credits.'); setLoading(false); return; }
+    if (!session) { window.location.href = '/login?redirect=/success?session_id=' + sessionId; return; }
 
     fetch(`/api/verify-session?session_id=${sessionId}`, {
       headers: { 'Authorization': `Bearer ${session.access_token}` },
     })
       .then(res => res.json())
       .then(data => {
-        if (data.credits) {
+        if (data.credits !== undefined) {
           setCredits(data.credits);
+          setTimeout(() => { window.location.href = '/'; }, 3000);
         } else if (data.error) {
           setError(data.error);
         }
@@ -50,7 +51,7 @@ export default function Success() {
           <div className="text-2xl font-bold">Verifying purchase...⏳</div>
         ) : error ? (
           <>
-            <div className="text-6xl mb-4">⚠️</div>
+            <div className="text-6xl mb-4">✅</div>
             <h1 className="text-4xl font-black mb-4">PAYMENT RECEIVED</h1>
             <p className="text-xl mb-8">
               {error}
@@ -73,14 +74,8 @@ export default function Success() {
               Added <strong>{credits} credits</strong> to your account.
             </p>
             <p className="text-sm text-gray-600 mb-8">
-              Your credits are now available across all your devices.
+              Redirecting you now...
             </p>
-            <Link
-              href="/"
-              className="inline-block text-xl font-black py-4 px-8 border-4 border-black bg-black text-white hover:bg-white hover:text-black transition"
-            >
-              START GENERATING →
-            </Link>
           </>
         ) : (
           <>
