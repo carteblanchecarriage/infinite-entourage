@@ -1,4 +1,4 @@
-const { buildEntouragePrompt } = require('../../lib/promptBuilder');
+const { buildEntouragePrompt, NEGATIVE_PROMPTS } = require('../../lib/promptBuilder');
 const { createClient } = require('@supabase/supabase-js');
 
 const FLUX_VERSION = '6e4a938f85952bdabcc15aa329178c4d681c52bf25a0342403287dc26944661d';
@@ -265,7 +265,9 @@ export default async function handler(req, res) {
     // Generate image
     const fluxInput = {
       prompt: fullPrompt,
-      go_fast: true,
+      negative_prompt: NEGATIVE_PROMPTS[style] || NEGATIVE_PROMPTS.realistic,
+      num_inference_steps: 35,
+      guidance: 3.5,
       num_outputs: 1,
       aspect_ratio: '1:1',
       output_format: 'png',

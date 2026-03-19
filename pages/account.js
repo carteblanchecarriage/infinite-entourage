@@ -2,6 +2,7 @@ import { useSession, useSupabaseClient } from '@supabase/auth-helpers-react';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import SiteHeader from '../components/SiteHeader';
 
 export default function Account() {
   const session = useSession();
@@ -27,16 +28,11 @@ export default function Account() {
 
   return (
     <div className="min-h-screen bg-white text-black font-mono">
-      <header className="border-b-4 border-black p-4 md:p-6">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <Link href="/" className="text-2xl md:text-4xl font-black tracking-tighter hover:bg-black hover:text-white px-2">
-            INFINITE ENTOURAGE
-          </Link>
-          <Link href="/" className="text-base md:text-xl font-bold border-2 border-black px-3 md:px-4 py-2 hover:bg-black hover:text-white transition">
-            ← BACK
-          </Link>
-        </div>
-      </header>
+      <SiteHeader>
+        <Link href="/" className="text-sm md:text-base font-bold border-2 border-black px-2 md:px-3 py-1 md:py-2 hover:bg-black hover:text-white transition">
+          ← BACK
+        </Link>
+      </SiteHeader>
 
       <main className="max-w-lg mx-auto p-6 mt-8">
         <h1 className="text-3xl font-black mb-8">ACCOUNT</h1>

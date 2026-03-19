@@ -2,6 +2,7 @@ import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSession } from '@supabase/auth-helpers-react';
+import SiteHeader from '../components/SiteHeader';
 
 export default function Home() {
   const session = useSession();
@@ -71,11 +72,19 @@ export default function Home() {
   const handlePromptChange = (e) => {
     const value = e.target.value;
     setPrompt(value);
-    if (value.toLowerCase().trim() === 'infinite' && !infiniteMode) {
-      setInfiniteMode(true);
-      localStorage.setItem('ie_infinite_mode', 'true');
-      setError('🔓 INFINITE MODE ACTIVATED - Unlimited generations!');
-      setTimeout(() => setError(''), 3000);
+    if (value.toLowerCase().trim() === 'infinite') {
+      if (!infiniteMode) {
+        setInfiniteMode(true);
+        localStorage.setItem('ie_infinite_mode', 'true');
+        setError('🔓 INFINITE MODE ACTIVATED - Unlimited generations!');
+        setTimeout(() => setError(''), 3000);
+      } else {
+        setInfiniteMode(false);
+        localStorage.removeItem('ie_infinite_mode');
+        setPrompt('');
+        setError('🔒 Infinite mode deactivated.');
+        setTimeout(() => setError(''), 3000);
+      }
     }
   };
 
@@ -160,51 +169,43 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white text-black font-mono">
-      {/* HEADER */}
-      <header className="border-b-4 border-black p-4 md:p-6">
-        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-          <Link href="/" className="text-2xl md:text-4xl font-black tracking-tighter hover:bg-black hover:text-white px-2">
-            INFINITE ENTOURAGE
-          </Link>
-          <div className="flex items-center gap-4">
-            {session ? (
-              <>
-                <div className={`flex items-center gap-2 border-2 border-black px-3 py-2 ${infiniteMode ? 'bg-purple-100 border-purple-500' : ''}`}>
-                  <span className="text-base md:text-lg font-bold">{infiniteMode ? '∞' : credits}</span>
-                  <span className="text-sm text-gray-600">{infiniteMode ? 'INFINITE' : 'CREDITS'}</span>
-                </div>
-                <Link href="/credits" className="text-base md:text-xl font-bold border-2 border-black px-3 md:px-4 py-2 hover:bg-black hover:text-white transition">
-                  BUY MORE
-                </Link>
-                <Link href="/account" className="text-sm font-bold border-2 border-black px-3 py-2 hover:bg-black hover:text-white transition">
-                  ACCOUNT
-                </Link>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-2 border-2 border-black px-3 py-2">
-                  <span className="text-base md:text-lg font-bold">{freeRemaining}</span>
-                  <span className="text-sm text-gray-600">FREE LEFT</span>
-                </div>
-                <Link href="/login" className="text-base md:text-xl font-bold border-2 border-black px-3 md:px-4 py-2 hover:bg-black hover:text-white transition">
-                  SIGN IN
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+      <SiteHeader>
+        {session ? (
+          <>
+            <div className={`flex items-center gap-2 border-2 border-black px-2 md:px-3 py-1 md:py-2 ${infiniteMode ? 'bg-purple-100 border-purple-500' : ''}`}>
+              <span className="text-sm md:text-base font-bold">{infiniteMode ? '∞' : credits}</span>
+              <span className="text-xs md:text-sm text-gray-600">{infiniteMode ? 'INFINITE' : 'CREDITS'}</span>
+            </div>
+            <Link href="/credits" className="text-sm md:text-base font-bold border-2 border-black px-2 md:px-3 py-1 md:py-2 hover:bg-black hover:text-white transition">
+              BUY
+            </Link>
+            <Link href="/account" className="text-sm font-bold border-2 border-black px-2 md:px-3 py-1 md:py-2 hover:bg-black hover:text-white transition">
+              ACCOUNT
+            </Link>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 border-2 border-black px-2 md:px-3 py-1 md:py-2">
+              <span className="text-sm md:text-base font-bold">{freeRemaining}</span>
+              <span className="text-xs md:text-sm text-gray-600">FREE LEFT</span>
+            </div>
+            <Link href="/login" className="text-sm md:text-base font-bold border-2 border-black px-2 md:px-3 py-1 md:py-2 hover:bg-black hover:text-white transition">
+              SIGN IN
+            </Link>
+          </>
+        )}
+      </SiteHeader>
 
       <main className="max-w-4xl mx-auto p-4 md:p-6">
 
         {/* SIGNUP PROMPT (anonymous free exhausted) */}
         {showSignupPrompt && (
           <div className="mb-8 border-4 border-black bg-black text-white p-6">
-            <h2 className="text-2xl font-black mb-2">YOU'VE USED YOUR 3 FREE GENERATIONS</h2>
-            <p className="text-lg mb-6">Create a free account to get 3 more — no credit card required.</p>
+            <h2 className="text-2xl font-black mb-2">LIKE WHAT YOU SEE?</h2>
+            <p className="text-lg mb-6">Sign up to keep going. Credits start at $5 for 20 generations — no subscription, no commitment.</p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link href="/login" className="text-center text-xl font-black py-4 px-8 border-4 border-white bg-white text-black hover:bg-black hover:text-white hover:border-white transition">
-                CREATE FREE ACCOUNT →
+                SIGN UP →
               </Link>
               <button onClick={() => setShowSignupPrompt(false)} className="text-center text-xl font-bold py-4 px-8 border-4 border-white hover:bg-white hover:text-black transition">
                 MAYBE LATER
@@ -230,26 +231,51 @@ export default function Home() {
         )}
 
         {/* HERO */}
-        <div className="mb-12 border-4 border-black p-6 md:p-8">
-          <div className="flex flex-col md:flex-row gap-6 items-center">
+        <div className="mb-8 border-4 border-black p-6 md:p-10">
+          <div className="flex flex-col md:flex-row gap-8 items-center">
             <div className="flex-1">
               <h1 className="text-4xl md:text-6xl font-black mb-4 leading-none">
-                GENERATE<br />TRANSPARENT<br />ENTOURAGE
+                DRAG AND DROP<br />INTO YOUR<br />RENDER.
               </h1>
-              <p className="text-lg md:text-xl font-bold">AI-GENERATED ASSETS FOR ARCHITECTURAL RENDERINGS</p>
-              <p className="text-sm md:text-base mt-2 text-gray-600">PEOPLE • ANIMALS • VEHICLES • PLANTS • OBJECTS</p>
+              <p className="text-lg md:text-xl font-bold mb-2">
+                Describe what you need. Get a transparent PNG, ready to paste.
+              </p>
+              <p className="text-base text-gray-600">
+                No background removal. No stock library.
+              </p>
+              {!session && freeRemaining > 0 && (
+                <p className="mt-4 text-base font-bold text-green-700 border-2 border-green-700 inline-block px-3 py-1">
+                  {freeRemaining} FREE GENERATION{freeRemaining !== 1 ? 'S' : ''} REMAINING — NO SIGN UP NEEDED
+                </p>
+              )}
             </div>
-            <div className="w-full md:w-64 flex-shrink-0">
-              <img src="/example-lemon-tree-clay-pot.png" alt="Lemon tree in clay pot" className="w-full" />
-              <p className="text-xs text-gray-500 mt-2 text-center">lemon tree in a clay pot</p>
+            <div className="w-full md:w-56 flex-shrink-0 text-center">
+              <img src="/example-lemon-tree-clay-pot.png" alt="Transparent lemon tree" className="w-full" />
+              <p className="text-xs text-gray-500 mt-2">transparent PNG, ready to use</p>
             </div>
+          </div>
+        </div>
+
+        {/* DIFFERENTIATORS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="border-4 border-black p-5">
+            <div className="text-2xl font-black mb-2">TRANSPARENT,<br />ALWAYS.</div>
+            <p className="text-sm text-gray-700">Every output is a cutout PNG with no background — ready to drop straight into Photoshop, Lumion, or any render. What you see is what you paste.</p>
+          </div>
+          <div className="border-4 border-black p-5">
+            <div className="text-2xl font-black mb-2">JUST DESCRIBE<br />THE PERSON.</div>
+            <p className="text-sm text-gray-700">Say "elderly man sitting" or "young woman with a coffee". We handle the rest — outfit, age, pose, and look. No two generations are the same, so your renders feel lived-in, not cloned.</p>
+          </div>
+          <div className="border-4 border-black p-5">
+            <div className="text-2xl font-black mb-2">BUILT FOR<br />RENDERINGS.</div>
+            <p className="text-sm text-gray-700">Other AI tools give you a photo. We give you entourage. Three styles — realistic, illustration, and silhouette — so it matches your presentation, not just your mood board.</p>
           </div>
         </div>
 
         {/* EXAMPLES */}
         <div className="mb-8 border-4 border-black p-4 md:p-6">
-          <h2 className="text-xl md:text-2xl font-black mb-4">EXAMPLE PROMPTS</h2>
-          <p className="text-sm text-gray-600 mb-3 font-bold">CLICK AN EXAMPLE TO USE IT</p>
+          <h2 className="text-xl md:text-2xl font-black mb-1">TRY AN EXAMPLE</h2>
+          <p className="text-sm text-gray-500 mb-4 font-bold">CLICK TO USE</p>
           <ul className="space-y-1 text-base md:text-lg font-bold">
             <li className="cursor-pointer hover:bg-black hover:text-white p-2" onClick={() => setPrompt('rusty vintage pickup truck side view')}>
               → RUSTY VINTAGE PICKUP TRUCK SIDE VIEW
@@ -260,10 +286,14 @@ export default function Home() {
             <li className="cursor-pointer hover:bg-black hover:text-white p-2" onClick={() => setPrompt('elderly woman sitting on bench reading newspaper')}>
               → ELDERLY WOMAN SITTING ON BENCH READING NEWSPAPER
             </li>
+            <li className="cursor-pointer hover:bg-black hover:text-white p-2" onClick={() => setPrompt('cyclist riding a road bike')}>
+              → CYCLIST RIDING A ROAD BIKE
+            </li>
           </ul>
-          <p className="text-xs text-gray-500 mt-3">TIP: DESCRIBE THE SUBJECT AND ACTION. AVOID BACKGROUNDS LIKE "ON STREET" OR "AGAINST WALL" — THEY MAKE BACKGROUND REMOVAL HARDER.</p>
-          <p className="text-xs text-gray-500 mt-2">TIP: FOR PEOPLE, ADD POSE INFO LIKE "WALKING" OR "STANDING". FOR OBJECTS, ADD VIEW LIKE "SIDE VIEW" OR "FRONT VIEW" FOR CLEANER RESULTS.</p>
-          <p className="text-xs text-gray-500 mt-2">TIP: INCLUDE KEY DETAILS IN YOUR FIRST 10 WORDS — "A WOMAN WITH A WATERING CAN" WORKS BETTER THAN JUST "A WOMAN".</p>
+          <div className="mt-4 pt-4 border-t-2 border-gray-200 space-y-1">
+            <p className="text-xs text-gray-500">TIP: DESCRIBE THE SUBJECT AND ACTION. SKIP BACKGROUNDS LIKE "ON STREET" OR "AGAINST WALL" — THEY MAKE CUTOUTS MESSIER.</p>
+            <p className="text-xs text-gray-500">TIP: ADD POSE AND VIEW — "WALKING", "SIDE VIEW", "FRONT VIEW" — FOR CLEANER RESULTS.</p>
+          </div>
         </div>
 
         {/* INPUT */}
@@ -296,9 +326,17 @@ export default function Home() {
         </div>
 
         {/* GENERATE */}
-        {!infiniteMode && totalCredits < 1 && session ? (
+        {!infiniteMode && !session && freeRemaining < 1 ? (
+          <div className="border-4 border-black bg-black text-white p-6 text-center">
+            <p className="text-xl md:text-2xl font-black mb-1">YOU'VE USED YOUR 3 FREE GENERATIONS</p>
+            <p className="text-base mb-5 text-gray-300">Sign up to keep going. Credits start at $5 for 20 generations.</p>
+            <Link href="/login" className="inline-block text-lg md:text-xl font-black py-3 px-8 border-4 border-white bg-white text-black hover:bg-black hover:text-white hover:border-white transition">
+              SIGN UP →
+            </Link>
+          </div>
+        ) : !infiniteMode && totalCredits < 1 && session ? (
           <Link href="/credits" className="block w-full text-xl md:text-3xl font-black py-4 md:py-6 border-4 border-black bg-black text-white hover:bg-white hover:text-black transition text-center">
-            NO CREDITS - BUY MORE
+            NO CREDITS — BUY MORE
           </Link>
         ) : (
           <button
